@@ -1,0 +1,36 @@
+import Link from "next/link";
+import { Plus } from "lucide-react";
+import { prisma } from "@/lib/db";
+import { AdminHeader } from "@/components/admin/AdminHeader";
+import { DataTable } from "@/components/admin/DataTable";
+import { StatusBadge } from "@/components/admin/StatusBadge";
+
+export default async function AdminPagesPage() {
+  const pages = await prisma.page.findMany({ orderBy: { title: "asc" } });
+  return (
+    <>
+      <AdminHeader
+        title="Pages"
+        description="Create and edit website pages, including content and publishing settings."
+        breadcrumbs={[{ label: "Pages" }]}
+        actions={
+          <Link href="/admin/pages/new" className="admin-btn-primary">
+            <Plus className="w-4 h-4" /> New Page
+          </Link>
+        }
+      />
+      <DataTable
+        keyField="id"
+        data={pages as never}
+        emptyTitle="No pages added yet"
+        emptyMessage="Create a page when you need new content on the public website."
+        emptyActionLabel="Create Page"
+        emptyActionHref="/admin/pages/new"
+        columns={[
+        { key: "title", label: "Title", render: (r) => <Link href={`/admin/pages/${r.id}`} className="text-primary hover:underline">{r.title as string}</Link> },
+        { key: "slug", label: "Website link", render: (r) => `/${r.slug as string}` },
+        { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status as string} /> },
+      ]} />
+    </>
+  );
+}

@@ -1,0 +1,3 @@
+-- Performance indexes migration temporarily disabled.
+-- The previous version referenced tables/columns that do not exist in the current Prisma schema.
+-- Recreate performance indexes later after confirming the actual table and column names.

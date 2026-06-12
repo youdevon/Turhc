@@ -1,0 +1,553 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ProjectStatus {
+  PLANNED
+  TENDERING
+  AWARDED
+  IN_PROGRESS
+  COMPLETED
+  SUSPENDED
+}
+
+enum TenderStatus {
+  OPEN
+  CLOSED
+  AWARDED
+  CANCELLED
+}
+
+enum HeroMediaType {
+  IMAGE
+  VIDEO
+}
+
+enum DocumentCategory {
+  ANNUAL_REPORT
+  PROCUREMENT_POLICY
+  FREEDOM_OF_INFORMATION
+  PUBLIC_DOCUMENT
+  GOVERNANCE
+  GENERAL
+}
+
+enum AuditAction {
+  LOGIN
+  LOGIN_FAILED
+  LOGOUT
+  CONTENT_CREATED
+  CONTENT_UPDATED
+  CONTENT_PUBLISHED
+  CONTENT_UNPUBLISHED
+  CONTENT_ARCHIVED
+  CONTENT_DELETED
+  DRAFT_SAVED
+  DRAFT_DISCARDED
+  FILE_UPLOADED
+  SETTINGS_CHANGED
+  USER_CREATED
+  USER_UPDATED
+  USER_DEACTIVATED
+  USER_DELETED
+  ENQUIRY_CREATED
+  ENQUIRY_READ
+  ENQUIRY_UPDATED
+  ENQUIRY_DELETED
+  PASSWORD_RESET
+  PERMISSION_CHANGED
+  VIEWED
+  EXPORTED
+  APPROVED
+  REJECTED
+}
+
+enum EnquiryStatus {
+  NEW
+  READ
+  IN_PROGRESS
+  RESPONDED
+  ARCHIVED
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id])
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model Page {
+  id                  String        @id @default(cuid())
+  title               String
+  slug                String        @unique
+  summary             String?
+  content             String        @db.Text
+  status              ContentStatus @default(DRAFT)
+  metaTitle           String?
+  metaDescription     String?
+  heroEyebrow         String?
+  heroTitle           String?
+  heroSubtitle        String?
+  heroImageUrl        String?
+  heroImageAlt        String?
+  heroImageFocusX     Int           @default(50)
+  heroImageFocusY     Int           @default(50)
+  heroImageZoom       Int           @default(100)
+  heroCtaLabel        String?
+  heroCtaHref         String?
+  heroOverlayStrength Float?        @default(0.55)
+  isLandingPage       Boolean       @default(false)
+  settingsJson        String?       @db.Text
+  draftData           String?       @db.Text
+  draftEditedAt       DateTime?
+  draftEditedBy       String?
+  publishedAt         DateTime?
+  publishedBy         String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  sections            PageSection[]
+  heroSlides          HeroSlide[]
+  statItems           StatItem[]
+
+  @@index([slug, status])
+}
+
+model PageSection {
+  id           String   @id @default(cuid())
+  pageId       String
+  page         Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  sectionKey   String
+  sectionTitle String?
+  eyebrow      String?
+  subtitle     String?
+  body         String?  @db.Text
+  imageUrl     String?
+  imageAlt     String?
+  imageFocusX  Int      @default(50)
+  imageFocusY  Int      @default(50)
+  imageZoom    Int      @default(100)
+  ctaLabel     String?
+  ctaHref      String?
+  settingsJson String?  @db.Text
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([pageId, displayOrder])
+  @@unique([pageId, sectionKey])
+}
+
+model StatItem {
+  id           String   @id @default(cuid())
+  pageId       String
+  page         Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  label        String
+  value        String
+  prefix       String?
+  suffix       String?
+  icon         String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model HeroSlide {
+  id              String        @id @default(cuid())
+  pageId          String?
+  page            Page?         @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  title           String
+  eyebrow         String?
+  heading         String
+  subheading      String?
+  primaryLabel    String?
+  primaryUrl      String?
+  secondaryLabel  String?
+  secondaryUrl    String?
+  mediaType       HeroMediaType @default(IMAGE)
+  mediaUrl        String
+  mediaAlt        String?
+  imageFocusX     Int           @default(50)
+  imageFocusY     Int           @default(50)
+  imageZoom       Int           @default(100)
+  overlayOpacity  Float         @default(0.55)
+  sortOrder       Int           @default(0)
+  isActive        Boolean       @default(true)
+  status          ContentStatus @default(DRAFT)
+  showStats       Boolean       @default(false)
+  statsJson       String?       @db.Text
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([pageId, sortOrder])
+  @@index([status, isActive])
+}
+
+model Project {
+  id                    String             @id @default(cuid())
+  title                 String
+  slug                  String             @unique
+  sector                String
+  location              String
+  description           String             @db.Text
+  status                ProjectStatus      @default(PLANNED)
+  progressPercent       Int                @default(0)
+  contractor            String?
+  contractValue         Decimal?           @db.Decimal(18, 2)
+  startDate             DateTime?
+  expectedCompletion    DateTime?
+  actualCompletion      DateTime?
+  featuredImageId       String?
+  featuredImage         MediaAsset?        @relation("ProjectFeaturedImage", fields: [featuredImageId], references: [id])
+  featuredImageUrl      String?
+  featuredImageAlt      String?
+  imageFocusX           Int                @default(50)
+  imageFocusY           Int                @default(50)
+  imageZoom             Int                @default(100)
+  cardSummary           String?
+  featured              Boolean            @default(false)
+  statusContent         ContentStatus      @default(DRAFT)
+  draftData             String?            @db.Text
+  draftEditedAt         DateTime?
+  draftEditedBy         String?
+  publishedAt           DateTime?
+  publishedBy           String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  milestones            ProjectMilestone[]
+  images                ProjectImage[]
+  documents             Document[]         @relation("ProjectDocuments")
+  newsPosts             NewsPost[]
+  @@index([statusContent, featured])
+  @@index([publishedAt])
+  @@index([updatedAt])
+}
+
+model ProjectMilestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  targetDate  DateTime?
+  completedAt DateTime?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ProjectImage {
+  id        String     @id @default(cuid())
+  projectId String
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mediaId   String
+  media     MediaAsset @relation(fields: [mediaId], references: [id])
+  caption   String?
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+}
+
+model Tender {
+  id                String            @id @default(cuid())
+  referenceNumber   String            @unique
+  title             String
+  slug              String            @unique
+  category          String
+  department        String
+  description       String            @db.Text
+  openingDate       DateTime
+  closingDate       DateTime
+  status            TenderStatus      @default(OPEN)
+  estimatedValue    Decimal?          @db.Decimal(18, 2)
+  successfulBidder  String?
+  awardInfo         String?           @db.Text
+  heroImageUrl      String?
+  heroImageAlt      String?
+  heroImageFocusX   Int               @default(50)
+  heroImageFocusY   Int               @default(50)
+  heroImageZoom     Int               @default(100)
+  statusContent     ContentStatus     @default(DRAFT)
+  draftData         String?           @db.Text
+  draftEditedAt     DateTime?
+  draftEditedBy     String?
+  publishedAt       DateTime?
+  publishedBy       String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  documents         TenderDocument[]
+  addenda           TenderAddendum[]
+  clarifications    TenderClarification[]
+  newsPosts         NewsPost[]
+  @@index([statusContent, status])
+  @@index([closingDate])
+  @@index([publishedAt])
+}
+
+model TenderDocument {
+  id        String     @id @default(cuid())
+  tenderId  String
+  tender    Tender     @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  mediaId   String
+  media     MediaAsset @relation(fields: [mediaId], references: [id])
+  title     String
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+}
+
+model TenderAddendum {
+  id          String     @id @default(cuid())
+  tenderId    String
+  tender      Tender     @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  title       String
+  description String?    @db.Text
+  mediaId     String?
+  media       MediaAsset? @relation(fields: [mediaId], references: [id])
+  publishedAt DateTime   @default(now())
+  createdAt   DateTime   @default(now())
+}
+
+model TenderClarification {
+  id          String   @id @default(cuid())
+  tenderId    String
+  tender      Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  question    String   @db.Text
+  answer      String   @db.Text
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+model NewsPost {
+  id              String        @id @default(cuid())
+  title           String
+  slug            String        @unique
+  category        String
+  summary         String
+  body            String        @db.Text
+  featuredImageId  String?
+  featuredImage    MediaAsset?   @relation("NewsFeaturedImage", fields: [featuredImageId], references: [id])
+  featuredImageUrl String?
+  featuredImageAlt String?
+  imageFocusX      Int           @default(50)
+  imageFocusY      Int           @default(50)
+  imageZoom        Int           @default(100)
+  status           ContentStatus @default(DRAFT)
+  draftData        String?       @db.Text
+  draftEditedAt    DateTime?
+  draftEditedBy    String?
+  publishedAt     DateTime?
+  publishedBy     String?
+  projectId       String?
+  project         Project?      @relation(fields: [projectId], references: [id])
+  tenderId        String?
+  tender          Tender?       @relation(fields: [tenderId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([createdAt])
+}
+
+model Document {
+  id          String           @id @default(cuid())
+  title       String
+  slug        String           @unique
+  description String?
+  category    DocumentCategory @default(GENERAL)
+  mediaId     String
+  media       MediaAsset       @relation(fields: [mediaId], references: [id])
+  year        Int?
+  status      ContentStatus    @default(DRAFT)
+  draftData   String?          @db.Text
+  draftEditedAt DateTime?
+  draftEditedBy String?
+  projectId   String?
+  project     Project?         @relation("ProjectDocuments", fields: [projectId], references: [id])
+  publishedAt DateTime?
+  publishedBy String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model MediaAsset {
+  id               String            @id @default(cuid())
+  filename         String
+  originalName     String
+  mimeType         String
+  size             Int
+  url              String
+  altText          String?
+  caption          String?
+  width            Int?
+  height           Int?
+  fileHash         String?
+  uploadedBy       String?
+  isDeleted        Boolean           @default(false)
+  deletedAt        DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  projectFeatured  Project[]         @relation("ProjectFeaturedImage")
+  projectImages    ProjectImage[]
+  tenderDocuments  TenderDocument[]
+  tenderAddenda    TenderAddendum[]
+  newsFeatured     NewsPost[]        @relation("NewsFeaturedImage")
+  documents        Document[]
+  boardPhotos      BoardMember[]
+  leadershipPhotos LeadershipMember[]
+
+  @@index([originalName])
+  @@index([size])
+  @@index([width, height])
+  @@index([fileHash])
+  @@index([isDeleted])
+}
+
+model BoardMember {
+  id          String        @id @default(cuid())
+  name        String
+  title       String
+  bio         String?       @db.Text
+  photoId     String?
+  photo       MediaAsset?   @relation(fields: [photoId], references: [id])
+  photoFocusX Int           @default(50)
+  photoFocusY Int           @default(50)
+  photoZoom   Int           @default(100)
+  sortOrder   Int           @default(0)
+  status      ContentStatus @default(DRAFT)
+  draftData   String?       @db.Text
+  draftEditedAt DateTime?
+  draftEditedBy String?
+  publishedAt DateTime?
+  publishedBy String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model LeadershipMember {
+  id          String        @id @default(cuid())
+  name        String
+  title       String
+  department  String?
+  bio         String?       @db.Text
+  photoId     String?
+  photo       MediaAsset?   @relation(fields: [photoId], references: [id])
+  photoFocusX Int           @default(50)
+  photoFocusY Int           @default(50)
+  photoZoom   Int           @default(100)
+  sortOrder   Int           @default(0)
+  status      ContentStatus @default(DRAFT)
+  draftData   String?       @db.Text
+  draftEditedAt DateTime?
+  draftEditedBy String?
+  publishedAt DateTime?
+  publishedBy String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  label     String
+  group     String   @default("general")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id            String      @id @default(cuid())
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorName     String?
+  actorEmail    String?
+  actorRole     String?
+  action        AuditAction
+  displayAction String?
+  module        String
+  recordName    String
+  recordId      String?
+  targetType    String?
+  targetName    String?
+  changes       Json?
+  ipAddress     String?
+  userAgent     String?
+  outcome       String      @default("Success")
+  failReason    String?
+  details       String?     @db.Text
+  createdAt     DateTime    @default(now())
+
+  @@index([createdAt])
+  @@index([actorEmail, createdAt])
+  @@index([module, recordName])
+  @@index([targetType, targetName])
+  @@index([displayAction, createdAt])
+  @@index([outcome, createdAt])
+}
+
+model Enquiry {
+  id                String        @id @default(cuid())
+  firstName         String
+  lastName          String
+  fullName          String?
+  companyName       String?
+  email             String
+  phone             String?
+  enquiryType       String        @default("general")
+  subject           String?
+  message           String        @db.Text
+  relatedTenderRef  String?
+  relatedProjectRef String?
+  status            EnquiryStatus @default(NEW)
+  isRead            Boolean       @default(false)
+  readAt            DateTime?
+  readBy            String?
+  internalNotes     String?       @db.Text
+  emailForwarded    Boolean       @default(false)
+  emailForwardedAt  DateTime?
+  emailForwardError String?       @db.Text
+  isDeleted         Boolean       @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([isDeleted, isRead])
+  @@index([isDeleted, status])
+  @@index([createdAt])
+}
