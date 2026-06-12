@@ -1,64 +1,85 @@
 import { Metadata } from "next";
-import { SectionHeading } from "@/components/public/SectionHeading";
 import { PageHero } from "@/components/public/PageHero";
-import { PersonCard } from "@/components/public/PersonCard";
-import { ScrollReveal } from "@/components/ui/ScrollReveal";
+import { AboutWhoWeAreSection } from "@/components/public/AboutWhoWeAreSection";
+import { AboutLeadershipSection } from "@/components/public/AboutLeadershipSection";
 import { getSiteSettings } from "@/lib/settings";
 import { getPublishedLeadership } from "@/lib/data";
 import { getPageHeroBySlug } from "@/lib/page-hero";
+import {
+  getLandingPageContent,
+  getSection,
+  LANDING_SECTION_KEYS,
+  type LandingStatItem,
+  type MandateCard,
+} from "@/lib/landing-page";
+import { getHeroImageFromSettings } from "@/lib/images";
 
 export const metadata: Metadata = { title: "About" };
 
+function parseDeliveryStats(json: string): LandingStatItem[] {
+  try {
+    const parsed = JSON.parse(json) as Array<{ label?: string; value?: string }>;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((item) => item.label && item.value)
+      .map((item, index) => ({
+        label: item.label!,
+        value: item.value!,
+        prefix: null,
+        suffix: null,
+        icon: null,
+        displayOrder: index,
+        isActive: true,
+      }));
+  } catch {
+    return [];
+  }
+}
+
 export default async function AboutPage() {
-  const [settings, leadership] = await Promise.all([
+  const [settings, leadership, hero, landing] = await Promise.all([
     getSiteSettings(),
     getPublishedLeadership(),
+    getPageHeroBySlug("about"),
+    getLandingPageContent(),
   ]);
-  const hero = await getPageHeroBySlug("about");
+
+  const whoWeAre = getSection(landing, LANDING_SECTION_KEYS.WHO_WE_ARE);
+  const mandate = getSection(landing, LANDING_SECTION_KEYS.MANDATE);
+  const governance = getSection(landing, LANDING_SECTION_KEYS.GOVERNANCE);
+  const mandateCards = (mandate.settings.cards as MandateCard[] | undefined) ?? [];
+
+  const landingStats = landing.statItems.filter((item) => item.isActive).slice(0, 3);
+  const settingsStats = parseDeliveryStats(settings.deliveryStatsJson).slice(0, 3);
+  const stats = landingStats.length > 0 ? landingStats : settingsStats;
+
+  const heroSubtitle =
+    hero.subtitle?.trim() || settings.orgTagline.trim() || settings.whoWeAreText.trim();
 
   return (
-    <>
-      <PageHero {...hero} subtitle={hero.subtitle || settings.whoWeAreText} />
+    <div className="about-page">
+      <PageHero
+        {...hero}
+        className="about-page__hero"
+        eyebrow={hero.eyebrow ?? "About the Company"}
+        title={hero.title || settings.orgName}
+        subtitle={heroSubtitle}
+      />
 
-      <section className="section-padding-tight blueprint-grid">
-        <div className="container-wide">
-          <SectionHeading
-            eyebrow="Our Mandate"
-            heading="What we do"
-            description={settings.mandateText}
-          />
-        </div>
-      </section>
+      <AboutWhoWeAreSection
+        whoWeAre={whoWeAre}
+        mandateCards={mandateCards}
+        whoWeAreFallback={settings.whoWeAreText}
+        mandateFallback={settings.mandateText}
+        stats={stats}
+        secondaryImageUrl={getHeroImageFromSettings(settings, "about")}
+      />
 
-      {leadership.length > 0 && (
-        <section className="section-padding bg-surface">
-          <div className="container-wide">
-            <SectionHeading
-              eyebrow="Leadership"
-              heading="Executive"
-              emphasis="Team"
-              align="center"
-            />
-            <div className="public-content-scroll">
-              {leadership.map((member, i) => (
-                <ScrollReveal key={member.id} delay={i * 0.05} className="h-full">
-                  <PersonCard
-                    name={member.name}
-                    title={member.title}
-                    department={member.department}
-                    bio={member.bio}
-                    photoUrl={member.photo?.url}
-                    photoFocusX={member.photoFocusX}
-                    photoFocusY={member.photoFocusY}
-                    photoZoom={member.photoZoom}
-                    variant="primary"
-                  />
-                </ScrollReveal>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-    </>
+      <AboutLeadershipSection
+        members={leadership}
+        intro={governance.subtitle ?? governance.body}
+      />
+    </div>
   );
 }
