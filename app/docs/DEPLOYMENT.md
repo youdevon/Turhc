@@ -22,7 +22,6 @@ Services:
 | Service | Port | Container |
 |---------|------|-----------|
 | CMS / public site | 3010 | `infrastructure-website-app` |
-| iMgMT | 3011 | `infrastructure-website-imgmt` |
 | CMS Postgres | 5437 | `infrastructure-website-db` |
 
 Check status:

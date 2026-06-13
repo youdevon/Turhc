@@ -24,47 +24,6 @@ services:
       retries: 3
       start_period: 60s
 
-  imgmt:
-    build:
-      context: ./apps/iMgMT
-      dockerfile: Dockerfile
-    container_name: infrastructure-website-imgmt
-    restart: unless-stopped
-    ports:
-      - "${IMGMT_PORT:-3011}:3000"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
-      - DATABASE_URL=postgresql://${IMGMT_POSTGRES_USER:-imgmt_user}:${IMGMT_POSTGRES_PASSWORD:-change_this_imgmt_password}@imgmt-db:5432/${IMGMT_POSTGRES_DB:-imgmt}?schema=public
-      - NEXTAUTH_URL=${IMGMT_URL:-http://localhost:3011}
-      - NEXTAUTH_SECRET=${IMGMT_NEXTAUTH_SECRET:-${NEXTAUTH_SECRET}}
-      - FILE_STORAGE_ROOT=/var/app-data/files
-      - IMGMT_ADMIN_EMAIL=${IMGMT_ADMIN_EMAIL:-admin@imgmt.local}
-      - IMGMT_ADMIN_PASSWORD=${IMGMT_ADMIN_PASSWORD:-ChangeMe123!}
-      - RUN_SEED=${IMGMT_RUN_SEED:-true}
-    volumes:
-      - imgmt_files:/var/app-data/files
-      - ./apps/iMgMT/logs:/app/logs
-    depends_on:
-      imgmt-db:
-        condition: service_started
-
-  imgmt-db:
-    image: postgres:16-alpine
-    container_name: infrastructure-website-imgmt-db
-    restart: unless-stopped
-    ports:
-      - "${IMGMT_DB_PORT:-5438}:5432"
-    environment:
-      POSTGRES_DB: ${IMGMT_POSTGRES_DB:-imgmt}
-      POSTGRES_USER: ${IMGMT_POSTGRES_USER:-imgmt_user}
-      POSTGRES_PASSWORD: ${IMGMT_POSTGRES_PASSWORD:-change_this_imgmt_password}
-    volumes:
-      - imgmt_db_data:/var/lib/postgresql/data
-
   db:
     image: postgres:16-alpine
     container_name: infrastructure-website-db
@@ -87,5 +46,3 @@ services:
 
 volumes:
   infrastructure_website_db_data:
-  imgmt_db_data:
-  imgmt_files:
