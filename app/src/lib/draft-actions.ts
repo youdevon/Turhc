@@ -7,7 +7,12 @@ import { prisma } from "./db";
 import { auditContentAction, requireAdmin } from "./admin-actions";
 import { getRecordStatus, parseDraftJson } from "./content-draft";
 import { applyLandingPagePayload } from "./landing-page-apply";
-import { LANDING_PAGE_SLUG, type LandingPageContent } from "./landing-page";
+import {
+  LANDING_PAGE_SLUG,
+  sanitizeLandingPagePayload,
+  validateLandingPagePayload,
+  type LandingPageContent,
+} from "./landing-page";
 import { applyLandingV2PagePayload } from "./landing-page-v2-apply";
 import { LANDING_V2_PAGE_SLUG, type LandingV2PageContent } from "./landing-page-v2";
 import { revalidateLandingV2Page } from "./revalidate-public";
@@ -31,7 +36,9 @@ export async function saveLandingPageDraft(formData: FormData) {
   const session = await requireAdmin();
   const raw = formData.get("payload") as string;
   if (!raw) throw new Error("Missing landing page payload");
-  const payload = JSON.parse(raw) as LandingPageContent;
+  const payload = sanitizeLandingPagePayload(JSON.parse(raw) as LandingPageContent);
+  const validationError = validateLandingPagePayload(payload);
+  if (validationError) throw new Error(validationError);
 
   const page = await prisma.page.findUnique({ where: { slug: LANDING_PAGE_SLUG } });
   const isLive = page?.status === ContentStatus.PUBLISHED;
@@ -71,7 +78,9 @@ export async function publishLandingPage(formData: FormData) {
   const session = await requireAdmin();
   const raw = formData.get("payload") as string;
   if (!raw) throw new Error("Missing landing page payload");
-  const payload = JSON.parse(raw) as LandingPageContent;
+  const payload = sanitizeLandingPagePayload(JSON.parse(raw) as LandingPageContent);
+  const validationError = validateLandingPagePayload(payload);
+  if (validationError) throw new Error(validationError);
 
   const page = await applyLandingPagePayload(
     { ...payload, status: ContentStatus.PUBLISHED },

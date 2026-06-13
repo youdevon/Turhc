@@ -3160,7 +3160,7 @@
   .site-canvas {
     font-size: var(--public-body-md);
     --section-eyebrow-line: #c9a46a;
-    --section-eyebrow-text: #315f8f;
+    --section-eyebrow-text: var(--section-eyebrow-light, #315f8f);
     --section-heading-primary: var(--section-heading-primary-light, #0b243f);
     --section-heading-secondary: #426f9e;
     --section-heading-accent-warm: #c9a46a;
@@ -3180,7 +3180,7 @@
 
   [data-theme="dark"] .site-canvas {
     --section-eyebrow-line: #c9a46a;
-    --section-eyebrow-text: #9ec4e4;
+    --section-eyebrow-text: var(--section-eyebrow-dark, #9ec4e4);
     --section-heading-primary: var(--section-heading-primary-dark, #eef2f7);
     --section-heading-secondary: #8eb8dc;
     --section-heading-accent-warm: #d4b06a;
@@ -3197,7 +3197,6 @@
     color: #111827;
     --text: #111827;
     --text-muted: #374151;
-    --section-eyebrow-text: #1e4a73;
     --section-heading-primary: var(--section-heading-primary-light, #0b243f);
     --section-heading-secondary: #1e4a73;
     --section-description: #374151;
@@ -4637,7 +4636,7 @@
     transform: scale(1);
   }
   to {
-    transform: scale(1.12);
+    transform: scale(1.15);
   }
 }
 
@@ -4653,7 +4652,8 @@
 }
 
 .hero-ken-burns {
-  animation: heroKenBurns 10s ease-out forwards;
+  transform-origin: center center;
+  animation: heroKenBurns var(--hero-ken-burns-duration, 10s) linear forwards;
   will-change: transform;
 }
 
@@ -5001,6 +5001,35 @@
 
 .landing-v2__intro .intro-section--textured::before {
   opacity: 0.4;
+}
+
+.intro-who-we-are-section .public-section-heading__primary {
+  color: var(--who-we-are-heading-light, var(--section-heading-primary));
+}
+
+.intro-who-we-are-section .public-section-heading__emphasis--blue {
+  color: var(--who-we-are-emphasis-light, var(--section-heading-secondary));
+}
+
+.intro-who-we-are-section .public-section-heading__emphasis--gold {
+  color: var(--who-we-are-emphasis-light, var(--section-heading-accent-warm));
+}
+
+.intro-who-we-are-section .public-section-heading__description {
+  color: var(--who-we-are-body-light, var(--section-description));
+}
+
+[data-theme="dark"] .intro-who-we-are-section .public-section-heading__primary {
+  color: var(--who-we-are-heading-dark, var(--section-heading-primary));
+}
+
+[data-theme="dark"] .intro-who-we-are-section .public-section-heading__emphasis--blue,
+[data-theme="dark"] .intro-who-we-are-section .public-section-heading__emphasis--gold {
+  color: var(--who-we-are-emphasis-dark, var(--section-heading-accent-warm));
+}
+
+[data-theme="dark"] .intro-who-we-are-section .public-section-heading__description {
+  color: var(--who-we-are-body-dark, var(--section-description));
 }
 
 .landing-v2__scene-inner {

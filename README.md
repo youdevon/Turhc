@@ -33,19 +33,24 @@ Modern public website and CMS for a special-purpose state enterprise / governmen
 
 ```bash
 cp .env.example .env
-# Edit .env with secure passwords and secrets
+# Edit .env with secure passwords, secrets, and your server URL (APP_URL / NEXTAUTH_URL)
 
+# First deployment only — seed admin user and demo content:
+# RUN_SEED=true in .env, then:
 docker compose up -d --build
+
+# After first successful start, set RUN_SEED=false in .env and recreate the app:
+# docker compose up -d app
 ```
 
 App: http://localhost:3010  
 Admin: http://localhost:3010/admin/login
 
-Default admin (from seed):
+Default admin (when seed runs):
 - Email: `admin@infrastructure.local`
 - Password: `ChangeMe123!`
 
-Set `RUN_SEED=false` in `.env` after first deployment.
+The app container waits for Postgres to be healthy, runs migrations on startup (including baselining legacy databases), and restarts automatically unless stopped manually.
 
 ## Local Development
 

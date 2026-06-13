@@ -18,12 +18,14 @@ import {
 import { ContentActionBar } from "../ContentActionBar";
 import {
   LANDING_SECTION_KEYS,
+  getWhoWeAreColorSettings,
   type GovernanceLink,
   type LandingPageContent,
   type LandingHeroSlideInput,
   type LandingStatItem,
   type IntroImagePosition,
   type MandateCard,
+  type WhoWeAreColorSettings,
 } from "@/lib/landing-page";
 import {
   LANDING_V2_SECTION_KEYS,
@@ -35,6 +37,7 @@ import { V2_VISUAL_PRESETS } from "@/lib/landing-page-v2-presets";
 import { MANDATE_ICON_OPTIONS } from "@/lib/admin-select-options";
 import { cn } from "@/lib/utils";
 import { LandingSectionHeadingFields } from "./LandingSectionHeadingFields";
+import { WhoWeAreColorFields } from "./WhoWeAreColorFields";
 
 type Props = {
   initialContent: LandingPageContent & { hasDraft?: boolean };
@@ -143,6 +146,7 @@ export function HomepageEditor({ initialContent, initialV2Content }: Props) {
   const mandateCards = (mandate.settings.cards as MandateCard[] | undefined) ?? [];
   const introShowImage = (whoWeAre.settings.showImage as boolean | undefined) ?? true;
   const introImagePosition = (whoWeAre.settings.imagePosition as IntroImagePosition | undefined) ?? "right";
+  const whoWeAreColors = getWhoWeAreColorSettings(whoWeAre);
 
   function updateSection<K extends keyof typeof content.sections>(
     key: K,
@@ -619,18 +623,21 @@ export function HomepageEditor({ initialContent, initialV2Content }: Props) {
                 <span className="font-medium text-foreground-muted">Zoom animation length (seconds)</span>
                 <input
                   type="number"
-                  min={1}
-                  max={5}
-                  step={0.1}
+                  min={5}
+                  max={20}
+                  step={0.5}
                   value={(content.hero.zoomDurationMs / 1000).toFixed(1)}
                   onChange={(e) =>
                     setContent((prev) => ({
                       ...prev,
-                      hero: { ...prev.hero, zoomDurationMs: Math.round((parseFloat(e.target.value) || 1.4) * 1000) },
+                      hero: { ...prev.hero, zoomDurationMs: Math.round((parseFloat(e.target.value) || 10) * 1000) },
                     }))
                   }
                   className="admin-input"
                 />
+                <span className="block text-xs text-foreground-muted">
+                  Ken Burns zoom on each slide. Should be longer than the slide duration so images crossfade while still moving.
+                </span>
               </label>
             </div>
           </SectionCard>
@@ -787,6 +794,18 @@ export function HomepageEditor({ initialContent, initialV2Content }: Props) {
                 descriptionField="body"
               />
             </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Section colours"
+            description="Override heading and body text colours for the Who We Are block. Eyebrow label colour is managed in Site Settings → Appearance."
+          >
+            <WhoWeAreColorFields
+              colors={whoWeAreColors}
+              onChange={(colors: WhoWeAreColorSettings) =>
+                updateSectionSettings(LANDING_SECTION_KEYS.WHO_WE_ARE, { colors })
+              }
+            />
           </SectionCard>
 
           <SectionCard

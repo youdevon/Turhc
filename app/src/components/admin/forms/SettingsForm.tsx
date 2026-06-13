@@ -161,6 +161,23 @@ export function SettingsForm({ settings, isAdministrator = false, smtpPasswordCo
           />
         </div>
 
+        <div className="admin-field-grid">
+          <FormField
+            label="Eyebrow label colour (light theme)"
+            name="eyebrowColorLightTheme"
+            type="color"
+            defaultValue={settings.eyebrowColorLightTheme || "#315f8f"}
+            help="Section eyebrow labels (e.g. “Who We Are”, “Governance”) when the light colour theme is active."
+          />
+          <FormField
+            label="Eyebrow label colour (dark theme)"
+            name="eyebrowColorDarkTheme"
+            type="color"
+            defaultValue={settings.eyebrowColorDarkTheme || "#9ec4e4"}
+            help="Section eyebrow labels when the dark colour theme is active."
+          />
+        </div>
+
         <FormField
           label="Hero overlay darkness"
           name="heroOverlayDarkness"

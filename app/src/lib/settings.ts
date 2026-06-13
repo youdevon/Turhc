@@ -26,6 +26,8 @@ export type SiteSettings = {
   secondaryAccentColor: string;
   headingColorLightTheme: string;
   headingColorDarkTheme: string;
+  eyebrowColorLightTheme: string;
+  eyebrowColorDarkTheme: string;
   heroOverlayDarkness: string;
   logoMediaId: string;
   heroImageAbout: string;
@@ -134,6 +136,8 @@ const SITE_SETTINGS_DEFAULTS: SiteSettings = {
   secondaryAccentColor: "#d4a853",
   headingColorLightTheme: "#0b243f",
   headingColorDarkTheme: "#eef2f7",
+  eyebrowColorLightTheme: "#315f8f",
+  eyebrowColorDarkTheme: "#9ec4e4",
   heroOverlayDarkness: "0.55",
   logoMediaId: "",
   heroImageAbout: "",

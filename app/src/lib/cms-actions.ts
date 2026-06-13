@@ -22,6 +22,8 @@ import { slugify, parseContentStatus } from "./utils";
 import { ContentStatus } from "@prisma/client";
 import {
   LANDING_PAGE_SLUG,
+  sanitizeLandingPagePayload,
+  validateLandingPagePayload,
   type LandingPageContent,
   type LandingSectionKey,
 } from "./landing-page";
@@ -630,7 +632,9 @@ export async function saveSettings(formData: FormData) {
     "contactAddress", "footerText", "whoWeAreText", "mandateText", "deliveryStatsJson",
     "socialFacebook", "socialInstagram", "socialYouTube", "socialLinkedIn", "socialTwitter",
     "activeTheme", "primaryAccentColor", "secondaryAccentColor",
-    "headingColorLightTheme", "headingColorDarkTheme", "heroOverlayDarkness",
+    "headingColorLightTheme", "headingColorDarkTheme",
+    "eyebrowColorLightTheme", "eyebrowColorDarkTheme",
+    "heroOverlayDarkness",
     "logoMediaId",
     "logoMediaIdWhite", "logoMediaIdColored",
     "logoMediaIdDark", "logoMediaIdLight",
@@ -683,6 +687,14 @@ export async function saveSettings(formData: FormData) {
     validateHexColorField(
       (formData.get("headingColorDarkTheme") as string) ?? "",
       "Dark theme heading colour"
+    ) ??
+    validateHexColorField(
+      (formData.get("eyebrowColorLightTheme") as string) ?? "",
+      "Light theme eyebrow label colour"
+    ) ??
+    validateHexColorField(
+      (formData.get("eyebrowColorDarkTheme") as string) ?? "",
+      "Dark theme eyebrow label colour"
     );
   if (headingColorError) {
     throw new Error(headingColorError);
@@ -774,7 +786,9 @@ export async function saveLandingPage(formData: FormData) {
   const raw = formData.get("payload") as string;
   if (!raw) throw new Error("Missing landing page payload");
 
-  const payload = JSON.parse(raw) as LandingPageContent;
+  const payload = sanitizeLandingPagePayload(JSON.parse(raw) as LandingPageContent);
+  const validationError = validateLandingPagePayload(payload);
+  if (validationError) throw new Error(validationError);
 
   const heroSettings = {
     enabled: payload.hero.enabled,

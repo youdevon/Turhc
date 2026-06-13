@@ -19,6 +19,7 @@ type CarouselProps = {
   heroOverlayDarkness?: number;
   slideIntervalMs?: number;
   fadeDurationMs?: number;
+  zoomDurationMs?: number;
   enabled?: boolean;
 };
 
@@ -109,6 +110,7 @@ export function PreHeroBandV2({
                 heroOverlayDarkness={carousel.heroOverlayDarkness}
                 slideIntervalMs={carousel.slideIntervalMs}
                 fadeDurationMs={carousel.fadeDurationMs}
+                zoomDurationMs={carousel.zoomDurationMs}
                 enabled={carousel.enabled && carousel.slides.length > 1}
                 backgroundOnly
               />
@@ -128,6 +130,7 @@ export function PreHeroBandV2({
                 heroOverlayDarkness={carousel.heroOverlayDarkness}
                 slideIntervalMs={carousel.slideIntervalMs}
                 fadeDurationMs={carousel.fadeDurationMs}
+                zoomDurationMs={carousel.zoomDurationMs}
                 enabled={carousel.enabled && carousel.slides.length > 1}
                 backgroundOnly
               />

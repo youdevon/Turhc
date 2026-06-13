@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { FramedImage } from "./FramedImage";
@@ -9,6 +9,7 @@ import type { LandingHeroLayout } from "@/lib/landing-page";
 
 const DEFAULT_SLIDE_INTERVAL_MS = 5000;
 const DEFAULT_FADE_DURATION_MS = 1400;
+const DEFAULT_ZOOM_DURATION_MS = 10000;
 
 type Props = {
   slides: HeroSlide[];
@@ -16,6 +17,7 @@ type Props = {
   heroOverlayDarkness?: number;
   slideIntervalMs?: number;
   fadeDurationMs?: number;
+  zoomDurationMs?: number;
   enabled?: boolean;
   /** Media slideshow only — no slide copy, CTAs, or dots (for pre-hero overlay scenes). */
   backgroundOnly?: boolean;
@@ -34,6 +36,7 @@ export function HeroCarousel({
   heroOverlayDarkness = 0.55,
   slideIntervalMs = DEFAULT_SLIDE_INTERVAL_MS,
   fadeDurationMs = DEFAULT_FADE_DURATION_MS,
+  zoomDurationMs = DEFAULT_ZOOM_DURATION_MS,
   enabled = true,
   backgroundOnly = false,
 }: Props) {
@@ -60,16 +63,19 @@ export function HeroCarousel({
     return () => mq.removeEventListener("change", handler);
   }, []);
 
+  const kenBurnsDurationMs = Math.max(zoomDurationMs, slideIntervalMs + fadeDurationMs);
+
   const restartZoom = useCallback(
     (index: number) => {
       if (reducedMotion) return;
       const el = zoomRefs.current[index];
       if (!el) return;
+      el.style.setProperty("--hero-ken-burns-duration", `${kenBurnsDurationMs}ms`);
       el.classList.remove("hero-ken-burns");
       void el.offsetWidth;
       el.classList.add("hero-ken-burns");
     },
-    [reducedMotion]
+    [reducedMotion, kenBurnsDurationMs]
   );
 
   const transitionTo = useCallback(
@@ -173,7 +179,15 @@ export function HeroCarousel({
               ref={(el) => {
                 zoomRefs.current[i] = el;
               }}
-              className={cn("absolute inset-0", !reducedMotion && "hero-ken-burns")}
+              className={cn(
+                "absolute inset-0 overflow-hidden",
+                !reducedMotion && "hero-ken-burns"
+              )}
+              style={
+                !reducedMotion
+                  ? ({ "--hero-ken-burns-duration": `${kenBurnsDurationMs}ms` } as CSSProperties)
+                  : undefined
+              }
             >
               <FramedImage
                 src={s.imageUrl}

@@ -121,7 +121,7 @@ export async function LandingPageV2View({
             layout: homepage.hero.layout,
             heroOverlayDarkness: homepage.hero.overlayStrength,
             slideIntervalMs: homepage.hero.slideDurationMs,
-            fadeDurationMs: homepage.hero.zoomDurationMs,
+            zoomDurationMs: homepage.hero.zoomDurationMs,
             enabled: homepage.hero.enabled && heroSlides.length > 1,
           }}
         />
@@ -137,7 +137,7 @@ export async function LandingPageV2View({
           layout={homepage.hero.layout}
           heroOverlayDarkness={homepage.hero.overlayStrength}
           slideIntervalMs={homepage.hero.slideDurationMs}
-          fadeDurationMs={homepage.hero.zoomDurationMs}
+          zoomDurationMs={homepage.hero.zoomDurationMs}
           enabled={homepage.hero.enabled && heroSlides.length > 1}
         />
       ) : null}

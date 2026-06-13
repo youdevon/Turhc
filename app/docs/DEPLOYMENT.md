@@ -1,5 +1,54 @@
 # Production deployment
 
+## Docker (recommended)
+
+From the project root:
+
+```bash
+cp .env.example .env
+# Set APP_URL, NEXTAUTH_URL, secrets, and DB passwords for your host (e.g. http://10.1.1.15:3010)
+
+# First install only:
+# RUN_SEED=true
+docker compose up -d --build
+
+# After the first successful start:
+# RUN_SEED=false
+docker compose up -d app
+```
+
+Services:
+
+| Service | Port | Container |
+|---------|------|-----------|
+| CMS / public site | 3010 | `infrastructure-website-app` |
+| iMgMT | 3011 | `infrastructure-website-imgmt` |
+| CMS Postgres | 5437 | `infrastructure-website-db` |
+
+Check status:
+
+```bash
+docker compose ps
+curl -I http://127.0.0.1:3010/
+```
+
+Rebuild after code changes:
+
+```bash
+docker compose up -d --build app
+```
+
+### Startup behaviour
+
+On each start the app container:
+
+1. Waits for Postgres (`pg_isready` healthcheck)
+2. Runs `prisma migrate deploy` (auto-baselines if the DB has tables but no migration history)
+3. Optionally seeds when `RUN_SEED=true` (seed failures on an already-populated DB do not block startup)
+4. Starts the Next.js standalone server on port 3000 (mapped to `APP_PORT`, default 3010)
+
+Uploads are mounted from `./uploads` — the Docker image does not bake them in.
+
 ## Build
 
 ```bash

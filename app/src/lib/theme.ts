@@ -8,6 +8,8 @@ export type AppearanceSettings = {
   secondaryAccentColor: string;
   headingColorLightTheme: string;
   headingColorDarkTheme: string;
+  eyebrowColorLightTheme: string;
+  eyebrowColorDarkTheme: string;
   heroOverlayDarkness: number;
 };
 
@@ -31,6 +33,8 @@ export const APPEARANCE_DEFAULTS: AppearanceSettings = {
   secondaryAccentColor: "#d4a853",
   headingColorLightTheme: "#0b243f",
   headingColorDarkTheme: "#eef2f7",
+  eyebrowColorLightTheme: "#315f8f",
+  eyebrowColorDarkTheme: "#9ec4e4",
   heroOverlayDarkness: 0.55,
 };
 
@@ -40,6 +44,8 @@ export const LIGHT_APPEARANCE_DEFAULTS: AppearanceSettings = {
   secondaryAccentColor: "#b9872d",
   headingColorLightTheme: "#0b243f",
   headingColorDarkTheme: "#eef2f7",
+  eyebrowColorLightTheme: "#315f8f",
+  eyebrowColorDarkTheme: "#9ec4e4",
   heroOverlayDarkness: 0.58,
 };
 
@@ -59,6 +65,14 @@ export function getAppearanceFromSettings(settings: SiteSettings): AppearanceSet
       defaults.headingColorLightTheme
     ),
     headingColorDarkTheme: normalizeHexColor(settings.headingColorDarkTheme, defaults.headingColorDarkTheme),
+    eyebrowColorLightTheme: normalizeHexColor(
+      settings.eyebrowColorLightTheme,
+      defaults.eyebrowColorLightTheme
+    ),
+    eyebrowColorDarkTheme: normalizeHexColor(
+      settings.eyebrowColorDarkTheme,
+      defaults.eyebrowColorDarkTheme
+    ),
     heroOverlayDarkness: parseFloat(settings.heroOverlayDarkness) || defaults.heroOverlayDarkness,
   };
 }
@@ -72,6 +86,8 @@ export function buildThemeInlineStyle(appearance: AppearanceSettings): Record<st
     "--gold": appearance.secondaryAccentColor,
     "--section-heading-primary-light": appearance.headingColorLightTheme,
     "--section-heading-primary-dark": appearance.headingColorDarkTheme,
+    "--section-eyebrow-light": appearance.eyebrowColorLightTheme,
+    "--section-eyebrow-dark": appearance.eyebrowColorDarkTheme,
     "--hero-overlay": String(overlay),
   };
 }

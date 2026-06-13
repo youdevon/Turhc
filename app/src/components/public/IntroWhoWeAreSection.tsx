@@ -3,6 +3,7 @@ import { IntroSupportingImage } from "@/components/public/IntroSupportingImage";
 import {
   getIntroImageSettings,
   getSectionHeadingEmphasis,
+  buildWhoWeAreColorCssVars,
   resolveIntroImageUrl,
   shouldShowIntroImage,
   type LandingSectionContent,
@@ -19,6 +20,7 @@ export function IntroWhoWeAreSection({ section }: Props) {
   const introImage = getIntroImageSettings(section);
   const showImage = shouldShowIntroImage(section);
   const isBackground = introImage.imagePosition === "background" && showImage;
+  const colorVars = buildWhoWeAreColorCssVars(section);
 
   const textBlock = (
     <SectionHeading
@@ -44,19 +46,20 @@ export function IntroWhoWeAreSection({ section }: Props) {
   return (
     <section
       className={cn(
-        "section-padding bg-background relative overflow-hidden",
+        "intro-who-we-are-section section-padding bg-background relative overflow-hidden",
         !isBackground && "intro-section--textured",
         isBackground && "intro-section--background"
       )}
-      style={
-        isBackground
+      style={{
+        ...colorVars,
+        ...(isBackground
           ? {
               backgroundImage: `linear-gradient(to right, color-mix(in srgb, var(--bg) 92%, transparent), color-mix(in srgb, var(--bg) 78%, transparent)), url(${resolveIntroImageUrl(section)})`,
               backgroundSize: "cover",
               backgroundPosition: `${section.imageFocusX ?? 50}% ${section.imageFocusY ?? 50}%`,
             }
-          : undefined
-      }
+          : undefined),
+      }}
     >
       <div className="container-wide relative z-10">
         {showImage && introImage.imagePosition !== "hidden" ? (

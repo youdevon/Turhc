@@ -3,6 +3,7 @@ import { ContentStatus } from "@prisma/client";
 import { prisma } from "./db";
 import { CACHE_TAGS } from "./cache-tags";
 import { parseDraftJson } from "./content-draft";
+import { normalizeHexColor, validateHexColorField } from "./theme";
 import { HERO_SLIDES } from "@/data/hero-slides";
 import { STOCK_IMAGES } from "@/data/stock-images";
 
@@ -32,6 +33,39 @@ export type IntroSupportingImageSettings = {
   imageCaption?: string | null;
   imagePosition?: IntroImagePosition;
   tagline?: string | null;
+};
+
+export const WHO_WE_ARE_COLOR_KEYS = [
+  "headingColor",
+  "emphasisColor",
+  "bodyColor",
+] as const;
+
+export type WhoWeAreColorKey = (typeof WHO_WE_ARE_COLOR_KEYS)[number];
+
+export type WhoWeAreSectionColorSet = Partial<Record<WhoWeAreColorKey, string | null>>;
+
+export type WhoWeAreColorSettings = {
+  light?: WhoWeAreSectionColorSet;
+  dark?: WhoWeAreSectionColorSet;
+};
+
+export type WhoWeAreSectionSettings = IntroSupportingImageSettings & {
+  headingEmphasis?: string;
+  colors?: WhoWeAreColorSettings;
+};
+
+export const WHO_WE_ARE_COLOR_DEFAULTS: Record<"light" | "dark", Record<WhoWeAreColorKey, string>> = {
+  light: {
+    headingColor: "#0b243f",
+    emphasisColor: "#c9a46a",
+    bodyColor: "#5f6b7a",
+  },
+  dark: {
+    headingColor: "#eef2f7",
+    emphasisColor: "#d4b06a",
+    bodyColor: "#94a3b8",
+  },
 };
 
 export type MandateCard = {
@@ -167,7 +201,7 @@ const DEFAULT_HERO: LandingHeroSettings = {
   layout: "contained",
   overlayStrength: 0.55,
   slideDurationMs: 5000,
-  zoomDurationMs: 1400,
+  zoomDurationMs: 10000,
 };
 
 function section(
@@ -378,14 +412,27 @@ function parseHeroSettings(json: string | null | undefined): LandingHeroSettings
     ? (parsed.v2HeroPreset as V2HeroPreset)
     : "contained_cinematic";
 
+function normalizeHeroZoomDurationMs(
+  value: number | undefined,
+  slideDurationMs: number = DEFAULT_HERO.slideDurationMs
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_HERO.zoomDurationMs;
+  // Legacy CMS values stored crossfade length (~1.4s) in zoomDurationMs before Ken Burns wiring.
+  const resolved = value <= 2000 ? DEFAULT_HERO.zoomDurationMs : value;
+  // Ken Burns must outlast each slide so zoom continues through crossfades.
+  return Math.max(resolved, slideDurationMs + 1400);
+}
+
   return {
     enabled: parsed.enabled !== false,
     layout: parsed.layout === "full_width" ? "full_width" : "contained",
     overlayStrength: typeof parsed.overlayStrength === "number" ? parsed.overlayStrength : DEFAULT_HERO.overlayStrength,
     slideDurationMs:
       typeof parsed.slideDurationMs === "number" ? parsed.slideDurationMs : DEFAULT_HERO.slideDurationMs,
-    zoomDurationMs:
-      typeof parsed.zoomDurationMs === "number" ? parsed.zoomDurationMs : DEFAULT_HERO.zoomDurationMs,
+    zoomDurationMs: normalizeHeroZoomDurationMs(
+      typeof parsed.zoomDurationMs === "number" ? parsed.zoomDurationMs : undefined,
+      typeof parsed.slideDurationMs === "number" ? parsed.slideDurationMs : DEFAULT_HERO.slideDurationMs
+    ),
     landingDisplayStyle,
     v2ShowPreHero: parsed.v2ShowPreHero !== false,
     v2PreHeroPreset,
@@ -644,6 +691,131 @@ export function getSectionHeadingEmphasis(section: LandingSectionContent): strin
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseWhoWeAreColorSet(raw: unknown): WhoWeAreSectionColorSet {
+  if (!raw || typeof raw !== "object") return {};
+  const source = raw as Record<string, unknown>;
+  const result: WhoWeAreSectionColorSet = {};
+
+  for (const key of WHO_WE_ARE_COLOR_KEYS) {
+    const value = source[key];
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed) result[key] = trimmed;
+  }
+
+  return result;
+}
+
+export function getWhoWeAreColorSettings(section: LandingSectionContent): WhoWeAreColorSettings {
+  const settings = section.settings as WhoWeAreSectionSettings;
+  const raw = settings.colors;
+  if (!raw || typeof raw !== "object") return {};
+
+  return {
+    light: parseWhoWeAreColorSet(raw.light),
+    dark: parseWhoWeAreColorSet(raw.dark),
+  };
+}
+
+export function sanitizeWhoWeAreColorSettings(colors: WhoWeAreColorSettings): WhoWeAreColorSettings {
+  const sanitizeSet = (
+    set: WhoWeAreSectionColorSet | undefined,
+    theme: "light" | "dark"
+  ): WhoWeAreSectionColorSet | undefined => {
+    if (!set) return undefined;
+    const result: WhoWeAreSectionColorSet = {};
+
+    for (const key of WHO_WE_ARE_COLOR_KEYS) {
+      const value = set[key];
+      if (typeof value !== "string" || !value.trim()) continue;
+      result[key] = normalizeHexColor(value, WHO_WE_ARE_COLOR_DEFAULTS[theme][key]);
+    }
+
+    return Object.keys(result).length > 0 ? result : undefined;
+  };
+
+  const light = sanitizeSet(colors.light, "light");
+  const dark = sanitizeSet(colors.dark, "dark");
+  if (!light && !dark) return {};
+
+  return { ...(light ? { light } : {}), ...(dark ? { dark } : {}) };
+}
+
+export function validateWhoWeAreColorSettings(section: LandingSectionContent): string | null {
+  const colors = getWhoWeAreColorSettings(section);
+
+  for (const theme of ["light", "dark"] as const) {
+    const set = colors[theme];
+    if (!set) continue;
+
+    for (const key of WHO_WE_ARE_COLOR_KEYS) {
+      const value = set[key];
+      if (!value) continue;
+      const label = `Who We Are ${key.replace(/Color$/, " colour")} (${theme} theme)`;
+      const error = validateHexColorField(value, label);
+      if (error) return error;
+    }
+  }
+
+  return null;
+}
+
+const WHO_WE_ARE_CSS_VAR_SUFFIX: Record<WhoWeAreColorKey, string> = {
+  headingColor: "heading",
+  emphasisColor: "emphasis",
+  bodyColor: "body",
+};
+
+export function buildWhoWeAreColorCssVars(
+  section: LandingSectionContent
+): Record<string, string> {
+  const colors = getWhoWeAreColorSettings(section);
+  const vars: Record<string, string> = {};
+
+  for (const theme of ["light", "dark"] as const) {
+    const set = colors[theme];
+    if (!set) continue;
+
+    for (const key of WHO_WE_ARE_COLOR_KEYS) {
+      const value = set[key];
+      if (!value) continue;
+      const suffix = WHO_WE_ARE_CSS_VAR_SUFFIX[key];
+      vars[`--who-we-are-${suffix}-${theme}`] = normalizeHexColor(
+        value,
+        WHO_WE_ARE_COLOR_DEFAULTS[theme][key]
+      );
+    }
+  }
+
+  return vars;
+}
+
+export function validateLandingPagePayload(payload: LandingPageContent): string | null {
+  const whoWeAre = payload.sections[LANDING_SECTION_KEYS.WHO_WE_ARE];
+  return validateWhoWeAreColorSettings(whoWeAre);
+}
+
+export function sanitizeLandingPagePayload(payload: LandingPageContent): LandingPageContent {
+  const whoWeAre = payload.sections[LANDING_SECTION_KEYS.WHO_WE_ARE];
+  const settings = whoWeAre.settings as WhoWeAreSectionSettings;
+  const colors = sanitizeWhoWeAreColorSettings(getWhoWeAreColorSettings(whoWeAre));
+  const { colors: _removed, ...restSettings } = settings;
+
+  return {
+    ...payload,
+    sections: {
+      ...payload.sections,
+      [LANDING_SECTION_KEYS.WHO_WE_ARE]: {
+        ...whoWeAre,
+        settings: {
+          ...restSettings,
+          ...(Object.keys(colors).length > 0 ? { colors } : {}),
+        },
+      },
+    },
+  };
 }
 
 /** @deprecated Use `getSectionHeadingEmphasis` */
