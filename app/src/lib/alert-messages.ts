@@ -92,6 +92,13 @@ export const ALERT_MESSAGES = {
       "This removes the file from the media library. Files still used on the site cannot be deleted.",
     confirmLabel: "Delete file",
   }),
+  confirmRemoveMissingMedia: (name: string) => ({
+    title: `Remove missing file "${name}"?`,
+    description:
+      "The file is no longer on the server but is still linked in the CMS. This removes the library entry and clears those broken links. Documents and tender files must be updated separately.",
+    confirmLabel: "Remove entry and clear links",
+    variant: "warning" as const,
+  }),
   confirmDeleteUser: (name: string) => ({
     title: `Delete ${name}?`,
     description:

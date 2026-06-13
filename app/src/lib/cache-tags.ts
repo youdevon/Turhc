@@ -3,5 +3,6 @@ export const CACHE_TAGS = {
   settings: "site-settings",
   landing: "landing-page",
   landingV2: "landing-v2-page",
+  about: "about-page",
   unreadEnquiries: "unread-enquiries",
 } as const;

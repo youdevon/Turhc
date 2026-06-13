@@ -21,6 +21,7 @@ export async function revalidatePublicSite() {
   revalidateTag(CACHE_TAGS.settings);
   revalidateTag(CACHE_TAGS.landing);
   revalidateTag(CACHE_TAGS.landingV2);
+  revalidateTag(CACHE_TAGS.about);
   revalidatePath("/", "layout");
   for (const path of PUBLIC_PAGE_PATHS) {
     revalidatePath(path, "layout");
@@ -52,4 +53,11 @@ export function revalidateLandingPage() {
 export function revalidateLandingV2Page() {
   revalidateTag(CACHE_TAGS.landingV2);
   revalidatePath("/landing-v2");
+}
+
+export function revalidateAboutPage() {
+  revalidateTag(CACHE_TAGS.about);
+  revalidatePath("/about", "page");
+  revalidatePath("/about", "layout");
+  revalidatePath("/preview/about", "page");
 }

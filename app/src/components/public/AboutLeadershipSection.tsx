@@ -1,6 +1,10 @@
 import { SectionHeading } from "@/components/public/SectionHeading";
 import { PersonCard } from "@/components/public/PersonCard";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
+import {
+  getAboutSectionHeadingEmphasis,
+  type AboutSectionContent,
+} from "@/lib/about-page";
 
 type LeadershipMember = {
   id: string;
@@ -16,22 +20,23 @@ type LeadershipMember = {
 
 type Props = {
   members: LeadershipMember[];
-  intro?: string | null;
+  section: AboutSectionContent;
 };
 
-export function AboutLeadershipSection({ members, intro }: Props) {
-  if (members.length === 0) return null;
+export function AboutLeadershipSection({ members, section }: Props) {
+  if (!section.isActive || members.length === 0) return null;
 
   return (
     <section className="about-page__leadership-band section-padding">
       <div className="container-wide about-page__leadership-inner">
         <SectionHeading
-          eyebrow="Our Leaders"
-          heading="We Are Here"
-          emphasis="to Serve You"
+          eyebrow={section.eyebrow ?? "Our Leaders"}
+          heading={section.sectionTitle ?? "We Are Here"}
+          emphasis={getAboutSectionHeadingEmphasis(section) ?? undefined}
           description={
-            intro?.trim() ||
-            "Meet the executive team guiding our housing delivery mandate with accountability and public service."
+            section.subtitle?.trim() ||
+            section.body?.trim() ||
+            "Meet the executive team guiding our delivery mandate with accountability and public service."
           }
           align="center"
         />

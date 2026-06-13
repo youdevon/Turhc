@@ -1,85 +1,64 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { PageHero } from "@/components/public/PageHero";
 import { AboutWhoWeAreSection } from "@/components/public/AboutWhoWeAreSection";
 import { AboutLeadershipSection } from "@/components/public/AboutLeadershipSection";
-import { getSiteSettings } from "@/lib/settings";
 import { getPublishedLeadership } from "@/lib/data";
-import { getPageHeroBySlug } from "@/lib/page-hero";
+import { STOCK_IMAGES } from "@/data/stock-images";
 import {
-  getLandingPageContent,
-  getSection,
-  LANDING_SECTION_KEYS,
-  type LandingStatItem,
-  type MandateCard,
-} from "@/lib/landing-page";
-import { getHeroImageFromSettings } from "@/lib/images";
+  ABOUT_SECTION_KEYS,
+  getAboutPageContent,
+  getAboutSection,
+  type AboutContentMode,
+} from "@/lib/about-page";
 
-export const metadata: Metadata = { title: "About" };
-
-function parseDeliveryStats(json: string): LandingStatItem[] {
-  try {
-    const parsed = JSON.parse(json) as Array<{ label?: string; value?: string }>;
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .filter((item) => item.label && item.value)
-      .map((item, index) => ({
-        label: item.label!,
-        value: item.value!,
-        prefix: null,
-        suffix: null,
-        icon: null,
-        displayOrder: index,
-        isActive: true,
-      }));
-  } catch {
-    return [];
-  }
+export async function generateAboutMetadata(mode: AboutContentMode = "public"): Promise<Metadata> {
+  const content = await getAboutPageContent(mode);
+  return {
+    title: content.metaTitle ?? "About",
+    description: content.metaDescription ?? undefined,
+  };
 }
 
-export default async function AboutPage() {
-  const [settings, leadership, hero, landing] = await Promise.all([
-    getSiteSettings(),
+export async function generateMetadata(): Promise<Metadata> {
+  return generateAboutMetadata("public");
+}
+
+export async function AboutPageView({ mode = "public" }: { mode?: AboutContentMode }) {
+  const [content, leadership] = await Promise.all([
+    getAboutPageContent(mode),
     getPublishedLeadership(),
-    getPageHeroBySlug("about"),
-    getLandingPageContent(),
   ]);
 
-  const whoWeAre = getSection(landing, LANDING_SECTION_KEYS.WHO_WE_ARE);
-  const mandate = getSection(landing, LANDING_SECTION_KEYS.MANDATE);
-  const governance = getSection(landing, LANDING_SECTION_KEYS.GOVERNANCE);
-  const mandateCards = (mandate.settings.cards as MandateCard[] | undefined) ?? [];
-
-  const landingStats = landing.statItems.filter((item) => item.isActive).slice(0, 3);
-  const settingsStats = parseDeliveryStats(settings.deliveryStatsJson).slice(0, 3);
-  const stats = landingStats.length > 0 ? landingStats : settingsStats;
-
-  const heroSubtitle =
-    hero.subtitle?.trim() || settings.orgTagline.trim() || settings.whoWeAreText.trim();
+  const whoWeAre = getAboutSection(content, ABOUT_SECTION_KEYS.WHO_WE_ARE);
+  const leadershipSection = getAboutSection(content, ABOUT_SECTION_KEYS.LEADERSHIP);
+  const hero = content.hero;
 
   return (
     <div className="about-page">
       <PageHero
-        {...hero}
         className="about-page__hero"
         eyebrow={hero.eyebrow ?? "About the Company"}
-        title={hero.title || settings.orgName}
-        subtitle={heroSubtitle}
+        title={hero.title ?? "About"}
+        subtitle={hero.subtitle ?? undefined}
+        imageUrl={hero.imageUrl ?? STOCK_IMAGES.about}
+        imageAlt={hero.imageAlt ?? undefined}
+        imageFocusX={hero.imageFocusX}
+        imageFocusY={hero.imageFocusY}
+        imageZoom={hero.imageZoom}
+        overlayStrength={hero.overlayStrength}
       />
 
       <AboutWhoWeAreSection
         whoWeAre={whoWeAre}
-        mandateCards={mandateCards}
-        whoWeAreFallback={settings.whoWeAreText}
-        mandateFallback={settings.mandateText}
-        stats={stats}
-        secondaryImageUrl={getHeroImageFromSettings(settings, "about")}
+        images={content.images}
+        stats={content.statItems}
       />
 
-      <AboutLeadershipSection
-        members={leadership}
-        intro={governance.subtitle ?? governance.body}
-      />
+      <AboutLeadershipSection members={leadership} section={leadershipSection} />
     </div>
   );
+}
+
+export default async function AboutPage() {
+  return AboutPageView({ mode: "public" });
 }

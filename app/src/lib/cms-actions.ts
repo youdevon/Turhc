@@ -15,7 +15,7 @@ import { encryptSecret } from "./secret-crypto";
 import { getSetting } from "./settings";
 import { parseSmtpEncryption, validateSmtpFormValues } from "./smtp-settings";
 import { validateHexColorField } from "./theme";
-import { revalidatePublicPage, revalidatePublicSite } from "./revalidate-public";
+import { revalidatePublicPage, revalidatePublicSite, revalidateAboutPage } from "./revalidate-public";
 import { GOVERNANCE_DOCUMENT_SECTION_PATHS } from "./document-categories";
 import { parseHeroImageFraming, parseImageFraming, parsePhotoFraming } from "./photo-framing";
 import { slugify, parseContentStatus } from "./utils";
@@ -28,6 +28,13 @@ import {
   type LandingSectionKey,
 } from "./landing-page";
 import {
+  ABOUT_PAGE_SLUG,
+  ABOUT_SECTION_KEYS,
+  sanitizeAboutPagePayload,
+  validateAboutPagePayload,
+  type AboutPageContent,
+} from "./about-page";
+import {
   getOptionalString,
   getString,
   newsFormSchema,
@@ -37,11 +44,6 @@ import {
   tenderFormSchema,
   userFormSchema,
 } from "./action-schemas";
-import {
-  deleteStoredMediaFile,
-  formatMediaUsageMessage,
-  getMediaUsage,
-} from "./media-delete";
 
 async function setPublishedDate(status: ContentStatus, existing?: Date | null) {
   if (status === "PUBLISHED") return existing ?? new Date();
@@ -1019,6 +1021,143 @@ export async function saveLandingPage(formData: FormData) {
   await revalidatePublicSite();
 }
 
+// About Page
+export async function saveAboutPage(formData: FormData) {
+  await requireAdmin();
+  const raw = formData.get("payload") as string;
+  if (!raw) throw new Error("Missing about page payload");
+
+  const payload = sanitizeAboutPagePayload(JSON.parse(raw) as AboutPageContent);
+  const validationError = validateAboutPagePayload(payload);
+  if (validationError) throw new Error(validationError);
+
+  const page = await prisma.page.upsert({
+    where: { slug: ABOUT_PAGE_SLUG },
+    create: {
+      slug: ABOUT_PAGE_SLUG,
+      title: payload.hero.title || "About",
+      content: "",
+      summary: payload.hero.subtitle,
+      status: payload.status,
+      metaTitle: payload.metaTitle,
+      metaDescription: payload.metaDescription,
+      heroEyebrow: payload.hero.eyebrow,
+      heroTitle: payload.hero.title,
+      heroSubtitle: payload.hero.subtitle,
+      heroImageUrl: payload.hero.imageUrl,
+      heroImageAlt: payload.hero.imageAlt,
+      heroImageFocusX: payload.hero.imageFocusX,
+      heroImageFocusY: payload.hero.imageFocusY,
+      heroImageZoom: payload.hero.imageZoom,
+      heroOverlayStrength: payload.hero.overlayStrength,
+      settingsJson: JSON.stringify(payload.images),
+      publishedAt: payload.status === "PUBLISHED" ? new Date() : null,
+    },
+    update: {
+      title: payload.hero.title || "About",
+      summary: payload.hero.subtitle,
+      status: payload.status,
+      metaTitle: payload.metaTitle,
+      metaDescription: payload.metaDescription,
+      heroEyebrow: payload.hero.eyebrow,
+      heroTitle: payload.hero.title,
+      heroSubtitle: payload.hero.subtitle,
+      heroImageUrl: payload.hero.imageUrl,
+      heroImageAlt: payload.hero.imageAlt,
+      heroImageFocusX: payload.hero.imageFocusX,
+      heroImageFocusY: payload.hero.imageFocusY,
+      heroImageZoom: payload.hero.imageZoom,
+      heroOverlayStrength: payload.hero.overlayStrength,
+      settingsJson: JSON.stringify(payload.images),
+      publishedAt: payload.status === "PUBLISHED" ? new Date() : undefined,
+    },
+  });
+
+  for (const key of Object.values(ABOUT_SECTION_KEYS)) {
+    const section = payload.sections[key];
+    await prisma.pageSection.upsert({
+      where: { pageId_sectionKey: { pageId: page.id, sectionKey: key } },
+      create: {
+        pageId: page.id,
+        sectionKey: key,
+        sectionTitle: section.sectionTitle,
+        eyebrow: section.eyebrow,
+        subtitle: section.subtitle,
+        body: section.body,
+        imageUrl: section.imageUrl,
+        imageAlt: section.imageAlt,
+        imageFocusX: section.imageFocusX,
+        imageFocusY: section.imageFocusY,
+        imageZoom: section.imageZoom,
+        ctaLabel: section.ctaLabel,
+        ctaHref: section.ctaHref,
+        settingsJson: JSON.stringify(section.settings ?? {}),
+        displayOrder: section.displayOrder,
+        isActive: section.isActive,
+      },
+      update: {
+        sectionTitle: section.sectionTitle,
+        eyebrow: section.eyebrow,
+        subtitle: section.subtitle,
+        body: section.body,
+        imageUrl: section.imageUrl,
+        imageAlt: section.imageAlt,
+        imageFocusX: section.imageFocusX,
+        imageFocusY: section.imageFocusY,
+        imageZoom: section.imageZoom,
+        ctaLabel: section.ctaLabel,
+        ctaHref: section.ctaHref,
+        settingsJson: JSON.stringify(section.settings ?? {}),
+        displayOrder: section.displayOrder,
+        isActive: section.isActive,
+      },
+    });
+  }
+
+  const statIds = payload.statItems.map((s) => s.id).filter(Boolean) as string[];
+  await prisma.statItem.deleteMany({
+    where: {
+      pageId: page.id,
+      ...(statIds.length > 0 ? { id: { notIn: statIds } } : {}),
+    },
+  });
+
+  for (const [index, stat] of payload.statItems.entries()) {
+    const statData = {
+      pageId: page.id,
+      label: stat.label,
+      value: stat.value,
+      prefix: stat.prefix,
+      suffix: stat.suffix,
+      icon: stat.icon,
+      displayOrder: index,
+      isActive: stat.isActive,
+    };
+
+    if (stat.id) {
+      await prisma.statItem.update({ where: { id: stat.id }, data: statData });
+    } else {
+      await prisma.statItem.create({ data: statData });
+    }
+  }
+
+  await auditContentAction({
+    action: "CONTENT_UPDATED",
+    module: "About Page",
+    recordName: page.title,
+    recordId: page.id,
+    summary: "Updated about page content",
+    details: {
+      changes: [
+        `Publish status: ${payload.status}`,
+        `${payload.statItems.filter((s) => s.isActive).length} statistics shown`,
+      ],
+    },
+  });
+
+  await revalidateAboutPage();
+}
+
 const MIN_USER_PASSWORD_LENGTH = 8;
 
 function assertValidUserPassword(password: string, label = "Password") {
@@ -1175,36 +1314,9 @@ export async function deleteUser(id: string) {
 
 // Media
 export async function deleteMediaAsset(id: string) {
-  await requireAdmin();
-
-  const asset = await prisma.mediaAsset.findFirst({ where: { id, isDeleted: false } });
-  if (!asset) {
-    throw new Error("File not found. It may have already been deleted.");
+  const { removeMediaAssetAction } = await import("./media-actions");
+  const result = await removeMediaAssetAction(id);
+  if (!result.ok) {
+    throw new Error(result.error);
   }
-
-  const usage = await getMediaUsage(id);
-  if (usage.length > 0) {
-    throw new Error(formatMediaUsageMessage(usage));
-  }
-
-  await prisma.mediaAsset.update({
-    where: { id },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
-
-  await deleteStoredMediaFile(asset.url);
-
-  await auditContentAction({
-    action: "CONTENT_DELETED",
-    module: "Media",
-    recordName: asset.originalName,
-    recordId: asset.id,
-    summary: `Deleted file "${asset.originalName}" from the media library`,
-    details: {
-      changes: [`File type: ${asset.mimeType}`, `Removed from disk: ${asset.url}`],
-    },
-  });
-
-  revalidatePath("/admin/media");
-  revalidatePath("/admin", "layout");
 }

@@ -219,6 +219,26 @@ export function Header({ config }: Props) {
   useEffect(() => {
     const headerHeightPx = headerRef.current?.offsetHeight || 84;
 
+    return observeElementWhenPresent("[data-hero-under-header]", {
+      retryUntilFound: isLandingHome,
+      onMissing: () => undefined,
+      createObserver: (heroBand) =>
+        new IntersectionObserver(
+          ([entry]) => {
+            if (entry.isIntersecting) {
+              setOverPreHero(true);
+              setOverHero(true);
+              setOverDarkSurface(true);
+            }
+          },
+          { threshold: 0, rootMargin: `-${headerHeightPx}px 0px 0px 0px` }
+        ),
+    });
+  }, [pathname, isLandingHome]);
+
+  useEffect(() => {
+    const headerHeightPx = headerRef.current?.offsetHeight || 84;
+
     return observeElementsWhenPresent("[data-dark-header-surface]", {
       retryUntilFound: isLandingHome,
       onMissing: () => setOverDarkSurface(false),

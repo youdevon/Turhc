@@ -15,9 +15,15 @@ import {
 } from "./landing-page";
 import { applyLandingV2PagePayload } from "./landing-page-v2-apply";
 import { LANDING_V2_PAGE_SLUG, type LandingV2PageContent } from "./landing-page-v2";
-import { revalidateLandingV2Page } from "./revalidate-public";
-
-import { revalidatePublicPage, revalidatePublicSite } from "./revalidate-public";
+import { revalidateLandingV2Page, revalidateAboutPage, revalidatePublicPage, revalidatePublicSite } from "./revalidate-public";
+import {
+  ABOUT_PAGE_SLUG,
+  sanitizeAboutPagePayload,
+  validateAboutPagePayload,
+  type AboutPageContent,
+} from "./about-page";
+import { applyAboutPagePayload } from "./about-page-apply";
+import { GOVERNANCE_DOCUMENT_SECTION_PATHS } from "./document-categories";
 import { slugify } from "./utils";
 import { parseHeroImageFraming, parseImageFraming, parsePhotoFraming } from "./photo-framing";
 
@@ -877,4 +883,207 @@ export async function discardLeadershipMemberDraft(id: string, name: string) {
     summary: `Discarded draft changes for leadership member ${name}.`,
   });
   revalidatePath(`/admin/leadership/${id}`);
+}
+
+// ——— About Page ———
+
+export async function saveAboutPageDraft(formData: FormData) {
+  const session = await requireAdmin();
+  const raw = formData.get("payload") as string;
+  if (!raw) throw new Error("Missing about page payload");
+
+  const payload = sanitizeAboutPagePayload(JSON.parse(raw) as AboutPageContent);
+  const validationError = validateAboutPagePayload(payload);
+  if (validationError) throw new Error(validationError);
+
+  const page = await prisma.page.findUnique({ where: { slug: ABOUT_PAGE_SLUG } });
+  const isLive = page?.status === ContentStatus.PUBLISHED;
+
+  if (!isLive) {
+    await applyAboutPagePayload(
+      { ...payload, status: ContentStatus.DRAFT },
+      { publishedBy: null, clearDraft: true }
+    );
+  } else {
+    await prisma.page.update({
+      where: { slug: ABOUT_PAGE_SLUG },
+      data: {
+        draftData: JSON.stringify(payload),
+        draftEditedAt: new Date(),
+        draftEditedBy: actorName(session),
+      },
+    });
+  }
+
+  await auditContentAction({
+    action: "DRAFT_SAVED",
+    module: "About Page",
+    recordName: "About Page",
+    recordId: page?.id,
+    summary: "Saved draft changes for About Page.",
+  });
+
+  revalidatePath("/admin/about");
+}
+
+export async function publishAboutPage(formData: FormData) {
+  const session = await requireAdmin();
+  const raw = formData.get("payload") as string;
+  if (!raw) throw new Error("Missing about page payload");
+
+  const payload = sanitizeAboutPagePayload(JSON.parse(raw) as AboutPageContent);
+  const validationError = validateAboutPagePayload(payload);
+  if (validationError) throw new Error(validationError);
+
+  const page = await applyAboutPagePayload(
+    { ...payload, status: ContentStatus.PUBLISHED },
+    { publishedBy: actorName(session), clearDraft: true }
+  );
+
+  await auditContentAction({
+    action: "CONTENT_PUBLISHED",
+    module: "About Page",
+    recordName: page.title,
+    recordId: page.id,
+    summary: "Published changes to About Page.",
+  });
+
+  await revalidateAboutPage();
+  revalidatePath("/admin/about");
+}
+
+export async function discardAboutPageDraft() {
+  await requireAdmin();
+  const page = await prisma.page.findUnique({ where: { slug: ABOUT_PAGE_SLUG } });
+  if (!page?.draftData) return;
+
+  await prisma.page.update({
+    where: { slug: ABOUT_PAGE_SLUG },
+    data: { draftData: null, draftEditedAt: null, draftEditedBy: null },
+  });
+
+  await auditContentAction({
+    action: "DRAFT_DISCARDED",
+    module: "About Page",
+    recordName: "About Page",
+    recordId: page.id,
+    summary: "Discarded draft changes for About Page.",
+  });
+
+  revalidatePath("/admin/about");
+}
+
+// ——— Documents ———
+
+function extractDocumentData(formData: FormData) {
+  const mediaId = (formData.get("mediaId") as string) || "";
+  if (!mediaId) throw new Error("Please upload a file before saving.");
+
+  return {
+    title: formData.get("title") as string,
+    slug: (formData.get("slug") as string) || slugify(formData.get("title") as string),
+    description: (formData.get("description") as string) || null,
+    category: formData.get("category") as never,
+    mediaId,
+    year: formData.get("year") ? parseInt(formData.get("year") as string, 10) : null,
+  };
+}
+
+export async function saveDocumentDraft(formData: FormData) {
+  const session = await requireAdmin();
+  const id = formData.get("id") as string | null;
+  const data = extractDocumentData(formData);
+
+  if (!id) {
+    const doc = await prisma.document.create({ data: { ...data, status: ContentStatus.DRAFT } });
+    await auditContentAction({
+      action: "CONTENT_CREATED",
+      module: "Documents",
+      recordName: doc.title,
+      recordId: doc.id,
+      summary: `Created draft document "${doc.title}"`,
+    });
+    redirect(`/admin/documents/${doc.id}`);
+  }
+
+  const existing = await prisma.document.findUnique({ where: { id } });
+  if (!existing) throw new Error("Document not found");
+
+  if (existing.status === ContentStatus.PUBLISHED) {
+    await prisma.document.update({
+      where: { id },
+      data: {
+        draftData: JSON.stringify(data),
+        draftEditedAt: new Date(),
+        draftEditedBy: actorName(session),
+      },
+    });
+  } else {
+    await prisma.document.update({
+      where: { id },
+      data: { ...data, status: ContentStatus.DRAFT, draftData: null },
+    });
+  }
+
+  await auditContentAction({
+    action: "DRAFT_SAVED",
+    module: "Documents",
+    recordName: data.title,
+    recordId: id,
+    summary: `Saved draft changes for Document: ${data.title}.`,
+  });
+
+  for (const path of GOVERNANCE_DOCUMENT_SECTION_PATHS) {
+    revalidatePath(path);
+  }
+  revalidatePath(`/admin/documents/${id}`);
+}
+
+export async function publishDocumentContent(formData: FormData) {
+  const session = await requireAdmin();
+  const id = formData.get("id") as string;
+  const data = extractDocumentData(formData);
+  const existing = await prisma.document.findUnique({ where: { id } });
+
+  await prisma.document.update({
+    where: { id },
+    data: {
+      ...data,
+      status: ContentStatus.PUBLISHED,
+      publishedAt: await setPublishedDate(ContentStatus.PUBLISHED, existing?.publishedAt),
+      publishedBy: actorName(session),
+      draftData: null,
+      draftEditedAt: null,
+      draftEditedBy: null,
+    },
+  });
+
+  await auditContentAction({
+    action: "CONTENT_PUBLISHED",
+    module: "Documents",
+    recordName: data.title,
+    recordId: id,
+    summary: `Published changes to Document: ${data.title}.`,
+  });
+
+  for (const path of GOVERNANCE_DOCUMENT_SECTION_PATHS) {
+    revalidatePath(path);
+  }
+  revalidatePath(`/admin/documents/${id}`);
+}
+
+export async function discardDocumentDraft(id: string, title: string) {
+  await requireAdmin();
+  await prisma.document.update({
+    where: { id },
+    data: { draftData: null, draftEditedAt: null, draftEditedBy: null },
+  });
+  await auditContentAction({
+    action: "DRAFT_DISCARDED",
+    module: "Documents",
+    recordName: title,
+    recordId: id,
+    summary: `Discarded draft changes for Document: ${title}.`,
+  });
+  revalidatePath(`/admin/documents/${id}`);
 }

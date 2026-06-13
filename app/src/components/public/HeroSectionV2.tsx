@@ -24,12 +24,18 @@ export function HeroSectionV2({
   enabled = true,
   overlap = false,
 }: Props) {
+  const isFullWidth = layout === "full_width";
+
   return (
     <div
       className={cn(
         "landing-v2__hero",
+        isFullWidth && "landing-v2__hero--under-header",
         overlap && "landing-v2__hero--after-pre-hero"
       )}
+      {...(isFullWidth
+        ? { "data-hero-under-header": "", "data-dark-header-surface": "" }
+        : {})}
     >
       <HeroCarousel
         slides={slides}
@@ -39,6 +45,7 @@ export function HeroSectionV2({
         fadeDurationMs={fadeDurationMs}
         zoomDurationMs={zoomDurationMs}
         enabled={enabled && slides.length > 1}
+        underHeader={isFullWidth}
       />
     </div>
   );

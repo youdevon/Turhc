@@ -53,7 +53,7 @@ export async function GET(
     });
     const downloadName = asset?.originalName ?? filename;
 
-    return new NextResponse(buffer, {
+    return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": contentType,
         "Content-Length": fileStat.size.toString(),

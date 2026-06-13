@@ -113,6 +113,7 @@ export function PreHeroBandV2({
                 zoomDurationMs={carousel.zoomDurationMs}
                 enabled={carousel.enabled && carousel.slides.length > 1}
                 backgroundOnly
+                underHeader={carousel.layout === "full_width"}
               />
             </div>
             <div className="landing-v2__pre-hero-blueprint" aria-hidden="true" />
@@ -133,6 +134,7 @@ export function PreHeroBandV2({
                 zoomDurationMs={carousel.zoomDurationMs}
                 enabled={carousel.enabled && carousel.slides.length > 1}
                 backgroundOnly
+                underHeader={carousel.layout === "full_width"}
               />
             </div>
             <div className="landing-v2__pre-hero-blueprint" aria-hidden="true" />

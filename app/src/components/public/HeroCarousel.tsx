@@ -21,6 +21,8 @@ type Props = {
   enabled?: boolean;
   /** Media slideshow only — no slide copy, CTAs, or dots (for pre-hero overlay scenes). */
   backgroundOnly?: boolean;
+  /** Full-width hero extends behind the site header; add top padding for nav clearance. */
+  underHeader?: boolean;
 };
 
 function heroOverlayBackground(opacity: number): string {
@@ -39,6 +41,7 @@ export function HeroCarousel({
   zoomDurationMs = DEFAULT_ZOOM_DURATION_MS,
   enabled = true,
   backgroundOnly = false,
+  underHeader = false,
 }: Props) {
   const [current, setCurrent] = useState(0);
   const [prev, setPrev] = useState<number | null>(null);
@@ -268,7 +271,14 @@ export function HeroCarousel({
         <div className="absolute inset-0">{mediaLayer}</div>
         {!backgroundOnly && (
           <>
-            <div className="absolute inset-0 z-10 flex flex-col justify-center container-wide px-4 sm:px-5 md:px-6 pt-10 sm:pt-12 md:pt-14 pb-12 sm:pb-16 md:pb-20">
+            <div
+              className={cn(
+                "absolute inset-0 z-10 flex flex-col justify-center container-wide px-4 sm:px-5 md:px-6 pb-12 sm:pb-16 md:pb-20",
+                underHeader
+                  ? "pt-[calc(var(--header-height)+2.5rem)] sm:pt-[calc(var(--header-height)+3rem)] md:pt-[calc(var(--header-height)+3.5rem)]"
+                  : "pt-10 sm:pt-12 md:pt-14"
+              )}
+            >
               <div key={`content-${slide.id}`} className="max-w-3xl">
                 <p className="text-xs sm:text-sm uppercase tracking-[0.18em] mb-3 sm:mb-4 font-medium" style={{ color: "var(--gold)" }}>
                   {slide.eyebrow}

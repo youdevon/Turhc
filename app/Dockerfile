@@ -1,5 +1,5 @@
 FROM node:22-alpine AS base
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl su-exec
 WORKDIR /app
 
 FROM base AS deps
@@ -40,7 +40,6 @@ RUN rm -rf /app/uploads /app/logs \
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"

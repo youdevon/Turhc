@@ -33,6 +33,11 @@ run_migrations() {
 
 run_migrations
 
+# Host-mounted volumes may be owned by the host user; ensure the app user can write uploads/logs.
+mkdir -p /app/uploads /app/logs
+chown -R nextjs:nodejs /app/uploads /app/logs 2>/dev/null || true
+chmod -R u+rwX,g+rwX /app/uploads /app/logs 2>/dev/null || true
+
 if [ "${RUN_SEED:-false}" = "true" ]; then
   echo "Running database seed..."
   set +e
@@ -44,4 +49,4 @@ if [ "${RUN_SEED:-false}" = "true" ]; then
   fi
 fi
 
-exec "$@"
+exec su-exec nextjs:nodejs "$@"

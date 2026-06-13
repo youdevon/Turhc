@@ -1,4 +1,4 @@
-import { unlink } from "fs/promises";
+import { access, unlink } from "fs/promises";
 import path from "path";
 import { prisma } from "./db";
 import { getUploadPath } from "./uploads";
@@ -62,6 +62,151 @@ export function formatMediaUsageMessage(refs: MediaUsageRef[]): string {
     ref.count === 1 ? `1 ${ref.label}` : `${ref.count} ${ref.label}s`
   );
   return `This file is still in use (${parts.join(", ")}). Remove those references before deleting.`;
+}
+
+export async function isMediaFileOnDisk(asset: {
+  url: string;
+  filename: string;
+}): Promise<boolean> {
+  try {
+    if (asset.url.startsWith("/api/uploads/")) {
+      await access(getUploadPath(asset.filename));
+      return true;
+    }
+
+    if (asset.url.startsWith("/uploads/brand/")) {
+      const filepath = path.join(process.cwd(), "public", "uploads", "brand", asset.filename);
+      await access(filepath);
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
+export async function clearMediaReferences(assetId: string, assetUrl: string): Promise<string[]> {
+  const cleared: string[] = [];
+
+  const idClears: Array<{ label: string; run: () => Promise<{ count: number }> }> = [
+    {
+      label: "project featured image",
+      run: () =>
+        prisma.project.updateMany({
+          where: { featuredImageId: assetId },
+          data: { featuredImageId: null, featuredImageUrl: null },
+        }),
+    },
+    {
+      label: "news featured image",
+      run: () =>
+        prisma.newsPost.updateMany({
+          where: { featuredImageId: assetId },
+          data: { featuredImageId: null, featuredImageUrl: null },
+        }),
+    },
+    {
+      label: "board member photo",
+      run: () =>
+        prisma.boardMember.updateMany({
+          where: { photoId: assetId },
+          data: { photoId: null },
+        }),
+    },
+    {
+      label: "leadership photo",
+      run: () =>
+        prisma.leadershipMember.updateMany({
+          where: { photoId: assetId },
+          data: { photoId: null },
+        }),
+    },
+    {
+      label: "site logo setting",
+      run: () =>
+        prisma.siteSetting.updateMany({
+          where: { key: { in: [...LOGO_SETTING_KEYS] }, value: assetId },
+          data: { value: "" },
+        }),
+    },
+  ];
+
+  for (const migration of idClears) {
+    const result = await migration.run();
+    if (result.count > 0) cleared.push(`${migration.label} (${result.count})`);
+  }
+
+  const urlClears: Array<{ label: string; run: () => Promise<{ count: number }> }> = [
+    {
+      label: "page hero image",
+      run: () =>
+        prisma.page.updateMany({
+          where: { heroImageUrl: assetUrl },
+          data: { heroImageUrl: null },
+        }),
+    },
+    {
+      label: "page section image",
+      run: () =>
+        prisma.pageSection.updateMany({
+          where: { imageUrl: assetUrl },
+          data: { imageUrl: null },
+        }),
+    },
+    {
+      label: "project featured image URL",
+      run: () =>
+        prisma.project.updateMany({
+          where: { featuredImageUrl: assetUrl },
+          data: { featuredImageUrl: null },
+        }),
+    },
+    {
+      label: "tender hero image",
+      run: () =>
+        prisma.tender.updateMany({
+          where: { heroImageUrl: assetUrl },
+          data: { heroImageUrl: null },
+        }),
+    },
+    {
+      label: "news featured image URL",
+      run: () =>
+        prisma.newsPost.updateMany({
+          where: { featuredImageUrl: assetUrl },
+          data: { featuredImageUrl: null },
+        }),
+    },
+  ];
+
+  for (const migration of urlClears) {
+    const result = await migration.run();
+    if (result.count > 0) cleared.push(`${migration.label} (${result.count})`);
+  }
+
+  return cleared;
+}
+
+export async function getBlockingMediaUsage(
+  assetId: string,
+  assetUrl: string
+): Promise<MediaUsageRef[]> {
+  const usage = await getMediaUsage(assetId);
+  const blocking = usage.filter(
+    (ref) =>
+      ref.label === "document" ||
+      ref.label === "tender document" ||
+      ref.label === "tender addendum" ||
+      ref.label === "project gallery image"
+  );
+
+  const heroSlides = await prisma.heroSlide.count({ where: { mediaUrl: assetUrl } });
+  if (heroSlides > 0) {
+    blocking.push({ label: "hero slide", count: heroSlides });
+  }
+
+  return blocking;
 }
 
 export async function reassignMediaReferences(

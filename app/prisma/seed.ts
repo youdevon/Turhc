@@ -8,6 +8,11 @@ import {
   LANDING_SECTION_KEYS,
 } from "../src/lib/landing-page";
 import { applyLandingV2PagePayload } from "../src/lib/landing-page-v2-apply";
+import {
+  ABOUT_PAGE_DEFAULTS,
+  ABOUT_PAGE_SLUG,
+  ABOUT_SECTION_KEYS,
+} from "../src/lib/about-page";
 import { LANDING_V2_DEFAULTS } from "../src/lib/landing-page-v2";
 
 const prisma = new PrismaClient();
@@ -590,6 +595,72 @@ async function main() {
     ...LANDING_V2_DEFAULTS,
     status: ContentStatus.PUBLISHED,
   });
+
+  const aboutDefaults = ABOUT_PAGE_DEFAULTS;
+  const aboutPage = await prisma.page.upsert({
+    where: { slug: ABOUT_PAGE_SLUG },
+    create: {
+      slug: ABOUT_PAGE_SLUG,
+      title: aboutDefaults.hero.title ?? "About",
+      content: "",
+      summary: aboutDefaults.hero.subtitle,
+      status: ContentStatus.PUBLISHED,
+      metaTitle: aboutDefaults.metaTitle,
+      metaDescription: aboutDefaults.metaDescription,
+      heroEyebrow: aboutDefaults.hero.eyebrow,
+      heroTitle: aboutDefaults.hero.title,
+      heroSubtitle: aboutDefaults.hero.subtitle,
+      heroImageUrl: aboutDefaults.hero.imageUrl,
+      heroImageAlt: aboutDefaults.hero.imageAlt,
+      heroOverlayStrength: aboutDefaults.hero.overlayStrength,
+      settingsJson: JSON.stringify(aboutDefaults.images),
+      publishedAt: new Date(),
+    },
+    update: {
+      metaTitle: aboutDefaults.metaTitle,
+      metaDescription: aboutDefaults.metaDescription,
+      settingsJson: JSON.stringify(aboutDefaults.images),
+    },
+  });
+
+  for (const key of Object.values(ABOUT_SECTION_KEYS)) {
+    const section = aboutDefaults.sections[key];
+    const sectionData = {
+      sectionTitle: section.sectionTitle,
+      eyebrow: section.eyebrow,
+      subtitle: section.subtitle,
+      body: section.body,
+      imageUrl: section.imageUrl,
+      imageAlt: section.imageAlt,
+      imageFocusX: section.imageFocusX,
+      imageFocusY: section.imageFocusY,
+      imageZoom: section.imageZoom,
+      settingsJson: JSON.stringify(section.settings ?? {}),
+      displayOrder: section.displayOrder,
+      isActive: section.isActive,
+    };
+    await prisma.pageSection.upsert({
+      where: { pageId_sectionKey: { pageId: aboutPage.id, sectionKey: key } },
+      create: { pageId: aboutPage.id, sectionKey: key, ...sectionData },
+      update: sectionData,
+    });
+  }
+
+  const aboutStatCount = await prisma.statItem.count({ where: { pageId: aboutPage.id } });
+  if (aboutStatCount === 0) {
+    await prisma.statItem.createMany({
+      data: aboutDefaults.statItems.map((stat, index) => ({
+        pageId: aboutPage.id,
+        label: stat.label,
+        value: stat.value,
+        prefix: stat.prefix,
+        suffix: stat.suffix,
+        icon: stat.icon,
+        displayOrder: stat.displayOrder ?? index,
+        isActive: stat.isActive,
+      })),
+    });
+  }
 
   const landingSlideCount = await prisma.heroSlide.count({ where: { pageId: landingPage.id } });
   if (landingSlideCount === 0) {

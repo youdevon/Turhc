@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Eye, FileText, Trash2 } from "lucide-react";
-import { deleteMediaAsset } from "@/lib/cms-actions";
+import { removeMediaAssetAction } from "@/lib/media-actions";
 import { ALERT_MESSAGES } from "@/lib/alert-messages";
 import { notifyError, notifySuccess } from "@/lib/notify";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -36,6 +36,7 @@ export type MediaLibraryItem = {
   altText: string | null;
   caption: string | null;
   isDuplicate?: boolean;
+  fileMissing?: boolean;
 };
 
 type Props = {
@@ -63,10 +64,26 @@ const EMPTY_COPY: Record<MediaCategory, { title: string; description: string }> 
 };
 
 function MediaPreview({ asset }: { asset: MediaLibraryItem }) {
+  const [broken, setBroken] = useState(false);
+
   if (isImageMime(asset.mimeType)) {
+    if (broken) {
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-surface p-3 text-center">
+          <FileText className="w-8 h-8 text-amber-500/80" />
+          <span className="text-xs text-muted leading-snug">File missing on server — re-upload this image</span>
+        </div>
+      );
+    }
+
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={asset.url} alt={asset.altText ?? ""} className="w-full h-full object-cover" />
+      <img
+        src={asset.url}
+        alt={asset.altText ?? ""}
+        className="w-full h-full object-cover"
+        onError={() => setBroken(true)}
+      />
     );
   }
 
@@ -111,15 +128,34 @@ export function MediaLibraryGrid({ assets, category }: Props) {
 
     setDeletingId(asset.id);
     startTransition(async () => {
-      try {
-        await deleteMediaAsset(asset.id);
-        notifySuccess(ALERT_MESSAGES.mediaDeleted(asset.originalName));
-        router.refresh();
-      } catch (error) {
-        notifyError(error instanceof Error ? error.message : ALERT_MESSAGES.deleteFailed);
-      } finally {
-        setDeletingId(null);
+      let result = await removeMediaAssetAction(asset.id);
+
+      if (!result.ok && result.canForceRemove) {
+        const forceOk = await confirm({
+          ...ALERT_MESSAGES.confirmRemoveMissingMedia(asset.originalName),
+          variant: "warning",
+        });
+        if (forceOk) {
+          result = await removeMediaAssetAction(asset.id, { clearReferences: true });
+        } else {
+          setDeletingId(null);
+          return;
+        }
       }
+
+      if (!result.ok) {
+        notifyError(result.error);
+        setDeletingId(null);
+        return;
+      }
+
+      notifySuccess(
+        result.clearedReferences?.length
+          ? `${asset.originalName} removed. Cleared ${result.clearedReferences.length} broken link(s).`
+          : ALERT_MESSAGES.mediaDeleted(asset.originalName)
+      );
+      router.refresh();
+      setDeletingId(null);
     });
   };
 

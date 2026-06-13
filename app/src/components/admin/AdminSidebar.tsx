@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Info,
   LayoutDashboard,
   Home,
   FileText,
@@ -42,6 +43,7 @@ const navGroups: { label: string; section: NavSection; items: NavItem[] }[] = [
     items: [
       { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/admin/landing-page-v2", label: "Homepage", icon: Home },
+      { href: "/admin/about", label: "About Page", icon: Info },
       { href: "/admin/pages", label: "Pages", icon: FileText },
       { href: "/admin/projects", label: "Projects", icon: FolderKanban },
       { href: "/admin/news", label: "News & Notices", icon: Newspaper },
