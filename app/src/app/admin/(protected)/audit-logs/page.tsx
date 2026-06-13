@@ -10,6 +10,8 @@ type Props = {
   searchParams: Promise<{
     page?: string;
     q?: string;
+    category?: string;
+    outcome?: string;
   }>;
 };
 
@@ -21,13 +23,15 @@ export default async function AuditLogsPage({ searchParams }: Props) {
   const { logs, totalPages } = await queryAuditLogs({
     page: Number.isFinite(page) && page > 0 ? page : 1,
     q: params.q,
+    category: params.category,
+    outcome: params.outcome,
   });
 
   return (
     <>
       <AdminHeader
         title="Audit Log"
-        description="A complete, human-readable history of who did what, what changed, and whether it succeeded."
+        description="A plain-language history of who did what, when, and whether it succeeded. Click any row for full details."
         breadcrumbs={[{ label: "Audit Log" }]}
       />
 
@@ -48,7 +52,7 @@ export default async function AuditLogsPage({ searchParams }: Props) {
           page={Number.isFinite(page) && page > 0 ? page : 1}
           totalPages={totalPages}
           basePath="/admin/audit-log"
-          searchParams={{ q: params.q }}
+          searchParams={{ q: params.q, category: params.category, outcome: params.outcome }}
         />
       </div>
     </>

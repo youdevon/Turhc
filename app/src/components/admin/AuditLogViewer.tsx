@@ -3,16 +3,22 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AuditLogListItem } from "@/lib/audit-helpers";
 import {
-  formatAuditAction,
   formatAuditTimestamp,
+  formatAuditTimestampDetailed,
   getAuditActorEmail,
   getAuditActorName,
+  getAuditCategory,
+  getAuditCategoryBadgeClass,
   getAuditChangeRows,
+  getAuditContextFields,
+  getAuditPlainEnglishSummary,
   getAuditTargetName,
   getAuditTargetType,
+  getAuditWhatHappened,
+  parseUserAgentSummary,
 } from "@/lib/audit-helpers";
 import { cn } from "@/lib/utils";
-import { Eye, X } from "lucide-react";
+import { ChevronRight, X } from "lucide-react";
 import { AdminEmptyState } from "./AdminEmptyState";
 
 type Props = {
@@ -23,22 +29,16 @@ function OutcomeBadge({ outcome }: { outcome: string | null | undefined }) {
   const label = outcome?.trim() || "Success";
   const success = label === "Success";
   return (
-    <span
-      className={cn(
-        "admin-badge",
-        success ? "admin-badge-success" : "admin-badge-danger"
-      )}
-    >
-      {label}
+    <span className={cn("admin-badge", success ? "admin-badge-success" : "admin-badge-danger")}>
+      {success ? "Succeeded" : label}
     </span>
   );
 }
 
-function ActionBadge({ action, displayAction }: { action: string; displayAction?: string | null }) {
+function CategoryBadge({ log }: { log: AuditLogListItem }) {
+  const category = getAuditCategory(log);
   return (
-    <span className="admin-badge admin-badge-neutral">
-      {formatAuditAction(action, displayAction)}
-    </span>
+    <span className={cn("admin-badge", getAuditCategoryBadgeClass(category))}>{category}</span>
   );
 }
 
@@ -48,6 +48,15 @@ function DetailField({ label, children }: { label: string; children: ReactNode }
       <p className="admin-detail-label">{label}</p>
       <div className="text-sm leading-relaxed">{children}</div>
     </div>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="audit-log-detail-section">
+      <h3 className="audit-log-detail-section__title">{title}</h3>
+      <div className="audit-log-detail-section__body">{children}</div>
+    </section>
   );
 }
 
@@ -89,7 +98,11 @@ function AuditLogDetailModal({
   const actorEmail = getAuditActorEmail(log);
   const targetType = getAuditTargetType(log);
   const targetName = getAuditTargetName(log);
-  const actionLabel = formatAuditAction(log.action, log.displayAction);
+  const summary = getAuditPlainEnglishSummary(log);
+  const whatHappened = getAuditWhatHappened(log);
+  const contextFields = getAuditContextFields(log);
+  const deviceSummary = parseUserAgentSummary(log.userAgent);
+  const category = getAuditCategory(log);
 
   return (
     <div
@@ -108,12 +121,15 @@ function AuditLogDetailModal({
       <div className="audit-log-modal__panel relative z-10 flex w-full max-w-6xl max-h-[min(92vh,900px)] flex-col overflow-hidden border border-border bg-surface-elevated shadow-2xl">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6 sm:py-5">
           <div className="min-w-0">
-            <p className="admin-eyebrow mb-1">Audit entry details</p>
-            <h2 id="audit-log-modal-title" className="admin-section-title text-lg sm:text-xl truncate">
-              {actionLabel}
-              {targetName ? ` — ${targetName}` : ""}
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <CategoryBadge log={log} />
+              <OutcomeBadge outcome={log.outcome} />
+            </div>
+            <p className="admin-eyebrow mb-1">Activity details</p>
+            <h2 id="audit-log-modal-title" className="admin-section-title text-lg sm:text-xl">
+              {summary}
             </h2>
-            <p className="text-sm text-muted mt-1">{formatAuditTimestamp(log.createdAt)}</p>
+            <p className="text-sm text-muted mt-1">{formatAuditTimestampDetailed(log.createdAt)}</p>
           </div>
           <button
             type="button"
@@ -125,47 +141,109 @@ function AuditLogDetailModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-          <div className="grid gap-6 lg:grid-cols-2 lg:gap-x-8">
-            <DetailField label="Name">{actorName}</DetailField>
-            <DetailField label="Email">{actorEmail ?? "—"}</DetailField>
-            <DetailField label="Role">{log.actorRole ?? "—"}</DetailField>
-            <DetailField label="Action">
-              <ActionBadge action={log.action} displayAction={log.displayAction} />
-            </DetailField>
-            <DetailField label="Area">{targetType ?? "—"}</DetailField>
-            <DetailField label="Item">{targetName ?? "—"}</DetailField>
-            <DetailField label="Outcome">
-              <OutcomeBadge outcome={log.outcome} />
-              {log.failReason && (
-                <p className="mt-2 text-muted">
-                  <span className="font-medium text-foreground">Reason:</span> {log.failReason}
-                </p>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6 space-y-8">
+          <DetailSection title="Who did this">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DetailField label="Person">{actorName}</DetailField>
+              <DetailField label="Email">{actorEmail ?? "—"}</DetailField>
+              <DetailField label="Role">{log.actorRole ?? "—"}</DetailField>
+              {log.userId && <DetailField label="User ID">{log.userId}</DetailField>}
+              {log.sessionId && (
+                <DetailField label="Session">
+                  <span className="font-mono text-xs break-all">{log.sessionId}</span>
+                </DetailField>
               )}
-            </DetailField>
-            <DetailField label="Time">{formatAuditTimestamp(log.createdAt)}</DetailField>
-            <DetailField label="IP Address">
-              <p className="break-all font-mono text-sm">{log.ipAddress ?? "—"}</p>
-            </DetailField>
-            <DetailField label="Browser / Device">
-              <p className="break-all text-muted">{log.userAgent ?? "—"}</p>
-            </DetailField>
-          </div>
+              {log.actingOnBehalfOf && (
+                <DetailField label="Acting on behalf of">{log.actingOnBehalfOf}</DetailField>
+              )}
+            </div>
+          </DetailSection>
 
-          <div className="mt-8">
-            <p className="admin-detail-label mb-3">Changes</p>
+          <DetailSection title="What happened">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DetailField label="Plain summary">{summary}</DetailField>
+              <DetailField label="Technical action">{whatHappened}</DetailField>
+              <DetailField label="Area">{targetType ?? "—"}</DetailField>
+              <DetailField label="Item affected">{targetName ?? "—"}</DetailField>
+              {log.recordId && (
+                <DetailField label="Record ID">
+                  <span className="font-mono text-xs break-all">{log.recordId}</span>
+                </DetailField>
+              )}
+              <DetailField label="Category">{category}</DetailField>
+            </div>
+          </DetailSection>
+
+          <DetailSection title="When">
+            <DetailField label="Timestamp">{formatAuditTimestampDetailed(log.createdAt)}</DetailField>
+          </DetailSection>
+
+          <DetailSection title="Where it came from">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DetailField label="IP address">
+                <span className="font-mono text-sm break-all">{log.ipAddress ?? "—"}</span>
+              </DetailField>
+              <DetailField label="Device">{deviceSummary}</DetailField>
+              {(log.httpMethod || log.route) && (
+                <DetailField label="Page / endpoint">
+                  {[log.httpMethod, log.route].filter(Boolean).join(" ") || "—"}
+                </DetailField>
+              )}
+              {log.userAgent && (
+                <DetailField label="Full browser details">
+                  <p className="break-all text-muted text-xs">{log.userAgent}</p>
+                </DetailField>
+              )}
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Outcome">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DetailField label="Result">
+                <OutcomeBadge outcome={log.outcome} />
+              </DetailField>
+              {log.failReason && (
+                <DetailField label="Why it failed">{log.failReason}</DetailField>
+              )}
+            </div>
+          </DetailSection>
+
+          {(contextFields.length > 0 || log.requestId) && (
+            <DetailSection title="Extra context">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {log.requestId && (
+                  <DetailField label="Request reference">
+                    <span className="font-mono text-xs break-all">{log.requestId}</span>
+                  </DetailField>
+                )}
+                {contextFields.map((field) => (
+                  <DetailField key={field.label} label={field.label}>
+                    {field.value}
+                  </DetailField>
+                ))}
+              </div>
+            </DetailSection>
+          )}
+
+          <DetailSection title="What changed">
             {changeRows.length === 0 ? (
               <p className="border border-border bg-surface px-4 py-6 text-sm text-muted">
-                No field changes recorded for this action.
+                No field changes were recorded for this activity.
               </p>
             ) : (
               <div className="overflow-x-auto border border-border">
                 <table className="audit-log-changes-table w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-surface">
-                      <th className="text-left px-4 py-3 font-medium text-muted whitespace-nowrap">Field</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted min-w-[12rem]">Before</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted min-w-[12rem]">After</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted whitespace-nowrap">
+                        Field
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted min-w-[12rem]">
+                        Before
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-muted min-w-[12rem]">
+                        After
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -180,7 +258,7 @@ function AuditLogDetailModal({
                 </table>
               </div>
             )}
-          </div>
+          </DetailSection>
         </div>
 
         <div className="flex shrink-0 justify-end border-t border-border px-5 py-4 sm:px-6">
@@ -198,6 +276,7 @@ export function AuditLogViewer({ logs }: Props) {
 
   const rows = useMemo(() => (Array.isArray(logs) ? logs : []), [logs]);
   const closeModal = useCallback(() => setSelectedLog(null), []);
+  const openModal = useCallback((log: AuditLogListItem) => setSelectedLog(log), []);
 
   if (!rows.length) {
     return (
@@ -212,26 +291,42 @@ export function AuditLogViewer({ logs }: Props) {
     <>
       <div className="admin-table-wrap">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="audit-log-table w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="admin-th normal-case tracking-normal">Time</th>
+                <th className="admin-th normal-case tracking-normal">When</th>
                 <th className="admin-th normal-case tracking-normal">Who</th>
-                <th className="admin-th normal-case tracking-normal">Action</th>
-                <th className="admin-th normal-case tracking-normal whitespace-normal">Target</th>
+                <th className="admin-th normal-case tracking-normal min-w-[16rem]">What happened</th>
+                <th className="admin-th normal-case tracking-normal">Category</th>
                 <th className="admin-th normal-case tracking-normal">Outcome</th>
-                <th className="admin-th normal-case tracking-normal text-right">Details</th>
+                <th className="admin-th normal-case tracking-normal w-10" aria-hidden="true" />
               </tr>
             </thead>
             <tbody>
               {rows.map((log) => {
                 const actorName = getAuditActorName(log);
                 const actorEmail = getAuditActorEmail(log);
-                const targetType = getAuditTargetType(log);
-                const targetName = getAuditTargetName(log);
+                const summary = getAuditPlainEnglishSummary(log);
+                const isSelected = selectedLog?.id === log.id;
 
                 return (
-                  <tr key={log.id} className="admin-tr align-top">
+                  <tr
+                    key={log.id}
+                    className={cn(
+                      "audit-log-row admin-tr align-top cursor-pointer transition-colors",
+                      isSelected && "audit-log-row--selected"
+                    )}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`View details: ${summary}`}
+                    onClick={() => openModal(log)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openModal(log);
+                      }
+                    }}
+                  >
                     <td className="admin-td whitespace-nowrap text-muted">
                       {formatAuditTimestamp(log.createdAt)}
                     </td>
@@ -239,31 +334,20 @@ export function AuditLogViewer({ logs }: Props) {
                       <p className="font-medium">{actorName}</p>
                       {actorEmail && <p className="admin-meta mt-0.5">{actorEmail}</p>}
                     </td>
-                    <td className="admin-td whitespace-nowrap">
-                      <ActionBadge action={log.action} displayAction={log.displayAction} />
-                    </td>
-                    <td className="admin-td min-w-[200px]">
-                      {targetType ? (
-                        <>
-                          <p className="font-medium">{targetType}</p>
-                          {targetName && <p className="admin-meta mt-0.5">{targetName}</p>}
-                        </>
-                      ) : (
-                        <span className="text-muted">—</span>
+                    <td className="admin-td min-w-[16rem]">
+                      <p className="font-medium leading-snug">{summary}</p>
+                      {log.failReason && log.outcome === "Failed" && (
+                        <p className="admin-meta mt-1 text-red-600 dark:text-red-400">{log.failReason}</p>
                       )}
+                    </td>
+                    <td className="admin-td whitespace-nowrap">
+                      <CategoryBadge log={log} />
                     </td>
                     <td className="admin-td whitespace-nowrap">
                       <OutcomeBadge outcome={log.outcome} />
                     </td>
-                    <td className="admin-td whitespace-nowrap text-right">
-                      <button
-                        type="button"
-                        className="admin-btn-quiet inline-flex items-center gap-1.5"
-                        onClick={() => setSelectedLog(log)}
-                      >
-                        <Eye className="h-4 w-4" aria-hidden="true" />
-                        View
-                      </button>
+                    <td className="admin-td whitespace-nowrap text-muted">
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
                     </td>
                   </tr>
                 );
@@ -271,6 +355,9 @@ export function AuditLogViewer({ logs }: Props) {
             </tbody>
           </table>
         </div>
+        <p className="px-4 py-3 text-xs text-muted border-t border-border">
+          Click any row to open full details. Entries are append-only and cannot be edited.
+        </p>
       </div>
 
       <AuditLogDetailModal log={selectedLog} open={selectedLog !== null} onClose={closeModal} />

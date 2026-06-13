@@ -42,6 +42,7 @@ export const authOptions: NextAuthOptions = {
             ipAddress: ip,
             userAgent,
             request: { headers: requestHeaders },
+            context: { httpMethod: "POST", route: "/admin/login" },
           });
           return null;
         }
@@ -58,10 +59,11 @@ export const authOptions: NextAuthOptions = {
             action: "Login Failed",
             target: { type: "User", name: user.name, id: user.id },
             outcome: "Failed",
-            failReason: "Invalid credentials",
+            failReason: "Invalid password",
             ipAddress: ip,
             userAgent,
             request: { headers: requestHeaders },
+            context: { httpMethod: "POST", route: "/admin/login" },
           });
           return null;
         }
@@ -83,6 +85,7 @@ export const authOptions: NextAuthOptions = {
           ipAddress: ip,
           userAgent,
           request: { headers: requestHeaders },
+          context: { httpMethod: "POST", route: "/admin/login" },
         });
 
         return {

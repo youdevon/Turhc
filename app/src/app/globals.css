@@ -311,6 +311,24 @@
     vertical-align: top;
   }
 
+  .audit-log-row:hover,
+  .audit-log-row:focus-visible {
+    background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+    outline: none;
+  }
+
+  .audit-log-row--selected {
+    background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+
+  .audit-log-detail-section__title {
+    @apply text-sm font-semibold uppercase tracking-wide text-muted mb-3;
+  }
+
+  .audit-log-detail-section__body {
+    @apply border border-border bg-surface px-4 py-4;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);

@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { AUDIT_LOG_PAGE_SIZE } from "./admin-list";
-import { HUMAN_AUDIT_ACTIONS } from "./audit-helpers";
+import { AUDIT_CATEGORIES, HUMAN_AUDIT_ACTIONS } from "./audit-helpers";
 
 export type AuditLogFilters = {
   page?: number;
@@ -9,6 +9,7 @@ export type AuditLogFilters = {
   action?: string;
   actor?: string;
   targetType?: string;
+  category?: string;
   outcome?: string;
   from?: string;
   to?: string;
@@ -70,6 +71,10 @@ function buildWhere(filters: AuditLogFilters): Prisma.AuditLogWhereInput {
     where.outcome = filters.outcome.trim();
   }
 
+  if (filters.category?.trim()) {
+    where.category = filters.category.trim();
+  }
+
   if (filters.from || filters.to) {
     const createdAt: Prisma.DateTimeFilter = {};
     if (filters.from) {
@@ -109,6 +114,7 @@ export async function queryAuditLogs(filters: AuditLogFilters) {
         actorRole: true,
         action: true,
         displayAction: true,
+        category: true,
         module: true,
         recordName: true,
         recordId: true,
@@ -117,6 +123,12 @@ export async function queryAuditLogs(filters: AuditLogFilters) {
         changes: true,
         ipAddress: true,
         userAgent: true,
+        sessionId: true,
+        requestId: true,
+        httpMethod: true,
+        route: true,
+        actingOnBehalfOf: true,
+        businessContext: true,
         outcome: true,
         failReason: true,
         details: true,
@@ -134,5 +146,6 @@ export async function queryAuditLogs(filters: AuditLogFilters) {
     totalPages: Math.max(1, Math.ceil(total / AUDIT_LOG_PAGE_SIZE)),
     pageSize: AUDIT_LOG_PAGE_SIZE,
     actionOptions: HUMAN_AUDIT_ACTIONS,
+    categoryOptions: [...AUDIT_CATEGORIES],
   };
 }

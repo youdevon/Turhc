@@ -2,7 +2,9 @@ import type { AuditAction, Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import {
   buildAuditSummary,
+  getAuditCategory,
   type AuditChangeMap,
+  type AuditCategory,
   type HumanAuditAction,
 } from "./audit-helpers";
 
@@ -25,6 +27,15 @@ type RequestLike =
   | { headers: Headers }
   | { headers: Record<string, string | string[] | undefined> };
 
+export type AuditRequestContext = {
+  sessionId?: string | null;
+  requestId?: string | null;
+  httpMethod?: string | null;
+  route?: string | null;
+  actingOnBehalfOf?: string | null;
+  businessContext?: string | null;
+};
+
 export type LogAuditParams = {
   actor?: AuditActor;
   action: HumanAuditAction;
@@ -38,6 +49,8 @@ export type LogAuditParams = {
   legacyAction?: AuditAction;
   summary?: string;
   details?: Record<string, unknown> | null;
+  category?: AuditCategory | null;
+  context?: AuditRequestContext | null;
 };
 
 export type AuditParams = {
@@ -59,6 +72,8 @@ export type AuditParams = {
   displayAction?: HumanAuditAction | null;
   targetType?: string | null;
   targetName?: string | null;
+  category?: AuditCategory | null;
+  context?: AuditRequestContext | null;
 };
 
 const SYSTEM_ACTOR = {
@@ -335,6 +350,50 @@ export function getUserAgent(
   return value ?? null;
 }
 
+function getRequestId(
+  headers: Headers | Record<string, string | string[] | undefined>
+): string | null {
+  const read = (key: string): string | null => {
+    if (headers instanceof Headers) return headers.get(key);
+    const value = headers[key];
+    if (Array.isArray(value)) return value[0] ?? null;
+    return value ?? null;
+  };
+
+  return read("x-request-id") ?? read("x-correlation-id");
+}
+
+function resolveRequestContext(
+  params: {
+    request?: RequestLike;
+    context?: AuditRequestContext | null;
+  }
+): AuditRequestContext {
+  const headers = params.request?.headers;
+  return {
+    sessionId: params.context?.sessionId ?? null,
+    requestId:
+      params.context?.requestId ??
+      (headers
+        ? getRequestId(headers as Headers | Record<string, string | string[] | undefined>)
+        : null),
+    httpMethod: params.context?.httpMethod ?? null,
+    route: params.context?.route ?? null,
+    actingOnBehalfOf: params.context?.actingOnBehalfOf ?? null,
+    businessContext: params.context?.businessContext ?? null,
+  };
+}
+
+function resolveCategory(
+  action: AuditAction,
+  explicit: AuditCategory | null | undefined,
+  module: string,
+  actorEmail: string | null
+): AuditCategory {
+  if (explicit) return explicit;
+  return getAuditCategory({ action, category: null, module, actorEmail });
+}
+
 export async function logAudit(params: LogAuditParams) {
   try {
     const actor = resolveActor(params.actor);
@@ -361,9 +420,17 @@ export async function logAudit(params: LogAuditParams) {
         displayAction: params.action,
       });
 
+    const requestContext = resolveRequestContext(params);
+    const category = resolveCategory(enumAction, params.category, module, actor.email);
+
     const detailsPayload = {
       ...(params.details ?? {}),
       summary,
+      requestId: requestContext.requestId,
+      httpMethod: requestContext.httpMethod,
+      route: requestContext.route,
+      actingOnBehalfOf: requestContext.actingOnBehalfOf,
+      businessContext: requestContext.businessContext,
     };
 
     await prisma.auditLog.create({
@@ -374,6 +441,7 @@ export async function logAudit(params: LogAuditParams) {
         actorRole: actor.role,
         action: enumAction,
         displayAction: params.action,
+        category,
         module,
         recordName,
         recordId: params.target?.id ?? null,
@@ -382,6 +450,12 @@ export async function logAudit(params: LogAuditParams) {
         changes: (params.changes ?? undefined) as Prisma.InputJsonValue | undefined,
         ipAddress,
         userAgent,
+        sessionId: requestContext.sessionId,
+        requestId: requestContext.requestId,
+        httpMethod: requestContext.httpMethod,
+        route: requestContext.route,
+        actingOnBehalfOf: requestContext.actingOnBehalfOf,
+        businessContext: requestContext.businessContext,
         outcome: params.outcome ?? "Success",
         failReason: params.failReason ?? null,
         details: JSON.stringify(detailsPayload),
@@ -415,9 +489,22 @@ export async function createAuditLog(params: AuditParams) {
         displayAction,
       });
 
+    const requestContext = resolveRequestContext(params);
+    const category = resolveCategory(
+      params.action,
+      params.category,
+      params.module,
+      actor.email
+    );
+
     const detailsPayload = {
       ...params.details,
       summary: params.summary ?? params.details?.summary ?? summary,
+      requestId: requestContext.requestId,
+      httpMethod: requestContext.httpMethod,
+      route: requestContext.route,
+      actingOnBehalfOf: requestContext.actingOnBehalfOf,
+      businessContext: requestContext.businessContext,
     };
 
     await prisma.auditLog.create({
@@ -428,6 +515,7 @@ export async function createAuditLog(params: AuditParams) {
         actorRole: actor.role,
         action: params.action,
         displayAction,
+        category,
         module: params.module,
         recordName: params.recordName,
         recordId: params.recordId ?? null,
@@ -436,6 +524,12 @@ export async function createAuditLog(params: AuditParams) {
         changes: (changes ?? undefined) as Prisma.InputJsonValue | undefined,
         ipAddress: params.ipAddress ?? null,
         userAgent: params.userAgent ?? null,
+        sessionId: requestContext.sessionId,
+        requestId: requestContext.requestId,
+        httpMethod: requestContext.httpMethod,
+        route: requestContext.route,
+        actingOnBehalfOf: requestContext.actingOnBehalfOf,
+        businessContext: requestContext.businessContext,
         outcome: params.outcome ?? "Success",
         failReason: params.failReason ?? null,
         details: JSON.stringify(detailsPayload),

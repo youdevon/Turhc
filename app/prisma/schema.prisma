@@ -491,26 +491,33 @@ model SiteSetting {
 }
 
 model AuditLog {
-  id            String      @id @default(cuid())
-  userId        String?
-  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  actorName     String?
-  actorEmail    String?
-  actorRole     String?
-  action        AuditAction
-  displayAction String?
-  module        String
-  recordName    String
-  recordId      String?
-  targetType    String?
-  targetName    String?
-  changes       Json?
-  ipAddress     String?
-  userAgent     String?
-  outcome       String      @default("Success")
-  failReason    String?
-  details       String?     @db.Text
-  createdAt     DateTime    @default(now())
+  id               String      @id @default(cuid())
+  userId           String?
+  user             User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorName        String?
+  actorEmail       String?
+  actorRole        String?
+  action           AuditAction
+  displayAction    String?
+  category         String?
+  module           String
+  recordName       String
+  recordId         String?
+  targetType       String?
+  targetName       String?
+  changes          Json?
+  ipAddress        String?
+  userAgent        String?
+  sessionId        String?
+  requestId        String?
+  httpMethod       String?
+  route            String?
+  actingOnBehalfOf String?
+  businessContext  String?     @db.Text
+  outcome          String      @default("Success")
+  failReason       String?
+  details          String?     @db.Text
+  createdAt        DateTime    @default(now())
 
   @@index([createdAt])
   @@index([actorEmail, createdAt])
@@ -518,6 +525,8 @@ model AuditLog {
   @@index([targetType, targetName])
   @@index([displayAction, createdAt])
   @@index([outcome, createdAt])
+  @@index([category, createdAt])
+  @@index([requestId])
 }
 
 model Enquiry {
