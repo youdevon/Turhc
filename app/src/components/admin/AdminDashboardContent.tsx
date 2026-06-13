@@ -9,7 +9,6 @@ import {
 } from "@/lib/admin-greeting";
 import { isAdministrator } from "@/lib/admin-access";
 import { getDashboardStats } from "@/lib/dashboard-stats";
-import { formatAuditTimestamp } from "@/lib/audit-helpers";
 import {
   LayoutDashboard,
   Home,
@@ -135,20 +134,6 @@ export async function AdminDashboardContent() {
             </>
           )}
         </div>
-
-        {isAdmin && stats.recentActivity.length > 0 && (
-          <div className="admin-card p-4">
-            <h2 className="admin-section-title text-base mb-3">Recent activity</h2>
-            <ul className="space-y-2">
-              {stats.recentActivity.map((item) => (
-                <li key={item.id} className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                  <span>{item.summary}</span>
-                  <span className="text-muted whitespace-nowrap">{formatAuditTimestamp(item.createdAt)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         <div className="admin-actions admin-actions--nowrap admin-dashboard-actions pt-1 border-t border-border">
           {quickActions.map((action) => {
