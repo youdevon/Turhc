@@ -25,34 +25,6 @@ type ProjectListItem = Pick<
 
 const projectListOrder = [{ publishedAt: "desc" as const }, { updatedAt: "desc" as const }];
 
-export async function getPublishedHeroSlides() {
-  return prisma.heroSlide.findMany({
-    where: { status: ContentStatus.PUBLISHED, isActive: true },
-    orderBy: { sortOrder: "asc" },
-    select: {
-      id: true,
-      title: true,
-      eyebrow: true,
-      heading: true,
-      subheading: true,
-      primaryLabel: true,
-      primaryUrl: true,
-      secondaryLabel: true,
-      secondaryUrl: true,
-      mediaType: true,
-      mediaUrl: true,
-      mediaAlt: true,
-      imageFocusX: true,
-      imageFocusY: true,
-      imageZoom: true,
-      overlayOpacity: true,
-      sortOrder: true,
-      showStats: true,
-      statsJson: true,
-    },
-  });
-}
-
 export async function getHomepageProjects(limit = 3, featuredOnly = true) {
   if (featuredOnly) {
     return getFeaturedProjects(limit);

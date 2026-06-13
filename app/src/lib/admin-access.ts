@@ -12,7 +12,6 @@ export function canAccessAdminRoute(role: string | undefined, href: string): boo
     "/admin/users",
     "/admin/audit-logs",
     "/admin/audit-log",
-    "/admin/hero-slides",
   ];
   return !adminOnly.some((path) => href === path || href.startsWith(`${path}/`));
 }

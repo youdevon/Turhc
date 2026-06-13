@@ -28,6 +28,16 @@ import {
   type LandingSectionKey,
 } from "./landing-page";
 import {
+  getOptionalString,
+  getString,
+  newsFormSchema,
+  parseOptionalDate,
+  parseOptionalFloat,
+  projectFormSchema,
+  tenderFormSchema,
+  userFormSchema,
+} from "./action-schemas";
+import {
   deleteStoredMediaFile,
   formatMediaUsageMessage,
   getMediaUsage,
@@ -41,30 +51,57 @@ async function setPublishedDate(status: ContentStatus, existing?: Date | null) {
 // Projects
 export async function saveProject(formData: FormData) {
   await requireAdmin();
-  const id = formData.get("id") as string | null;
-  const title = formData.get("title") as string;
-  const slug = (formData.get("slug") as string) || slugify(title);
-  const status = parseContentStatus(formData.get("status") as string);
-  const data = {
+  const id = getOptionalString(formData, "id", 64);
+  const title = getString(formData, "title", 300);
+  const slug = getString(formData, "slug", 200) || slugify(title);
+  const status = parseContentStatus(getString(formData, "status", 20));
+
+  const parsed = projectFormSchema.safeParse({
+    id,
     title,
     slug,
-    sector: formData.get("sector") as string,
-    location: formData.get("location") as string,
-    description: formData.get("description") as string,
-    status: formData.get("projectStatus") as never,
-    progressPercent: parseInt(formData.get("progressPercent") as string) || 0,
-    contractor: (formData.get("contractor") as string) || null,
-    contractValue: formData.get("contractValue") ? parseFloat(formData.get("contractValue") as string) : null,
-    startDate: formData.get("startDate") ? new Date(formData.get("startDate") as string) : null,
-    expectedCompletion: formData.get("expectedCompletion") ? new Date(formData.get("expectedCompletion") as string) : null,
-    actualCompletion: formData.get("actualCompletion") ? new Date(formData.get("actualCompletion") as string) : null,
-    featuredImageId: (formData.get("featuredImageId") as string) || null,
-    featuredImageUrl: (formData.get("featuredImageUrl") as string) || null,
-    featuredImageAlt: (formData.get("featuredImageAlt") as string) || null,
-    ...parseImageFraming(formData),
-    cardSummary: (formData.get("cardSummary") as string) || null,
+    sector: getString(formData, "sector", 120),
+    location: getString(formData, "location", 200),
+    description: getString(formData, "description", 50000),
+    projectStatus: getString(formData, "projectStatus", 50),
+    progressPercent: parseInt(getString(formData, "progressPercent", 10), 10) || 0,
+    contractor: getOptionalString(formData, "contractor", 200),
+    contractValue: parseOptionalFloat(formData.get("contractValue")),
+    startDate: parseOptionalDate(formData.get("startDate")),
+    expectedCompletion: parseOptionalDate(formData.get("expectedCompletion")),
+    actualCompletion: parseOptionalDate(formData.get("actualCompletion")),
+    featuredImageId: getOptionalString(formData, "featuredImageId", 64),
+    featuredImageUrl: getOptionalString(formData, "featuredImageUrl", 2000),
+    featuredImageAlt: getOptionalString(formData, "featuredImageAlt", 300),
+    cardSummary: getOptionalString(formData, "cardSummary", 500),
     featured: formData.get("featured") === "on",
     statusContent: status,
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.errors[0]?.message ?? "Invalid project data");
+  }
+
+  const data = {
+    title: parsed.data.title,
+    slug: parsed.data.slug,
+    sector: parsed.data.sector,
+    location: parsed.data.location,
+    description: parsed.data.description,
+    status: parsed.data.projectStatus as never,
+    progressPercent: parsed.data.progressPercent,
+    contractor: parsed.data.contractor,
+    contractValue: parsed.data.contractValue,
+    startDate: parsed.data.startDate,
+    expectedCompletion: parsed.data.expectedCompletion,
+    actualCompletion: parsed.data.actualCompletion,
+    featuredImageId: parsed.data.featuredImageId,
+    featuredImageUrl: parsed.data.featuredImageUrl,
+    featuredImageAlt: parsed.data.featuredImageAlt,
+    ...parseImageFraming(formData),
+    cardSummary: parsed.data.cardSummary,
+    featured: parsed.data.featured,
+    statusContent: parsed.data.statusContent,
   };
 
   if (id) {
@@ -136,34 +173,55 @@ export async function deleteProject(id: string) {
 // Tenders
 export async function saveTender(formData: FormData) {
   await requireAdmin();
-  const id = formData.get("id") as string | null;
-  const title = formData.get("title") as string;
-  const slug = (formData.get("slug") as string) || slugify(title);
-  const status = parseContentStatus(formData.get("status") as string);
-  const data = {
-    referenceNumber: formData.get("referenceNumber") as string,
+  const id = getOptionalString(formData, "id", 64);
+  const title = getString(formData, "title", 300);
+  const slug = getString(formData, "slug", 200) || slugify(title);
+  const status = parseContentStatus(getString(formData, "status", 20));
+  const framing = parseHeroImageFraming(formData);
+
+  const parsed = tenderFormSchema.safeParse({
+    id,
+    referenceNumber: getString(formData, "referenceNumber", 100),
     title,
     slug,
-    category: formData.get("category") as string,
-    department: formData.get("department") as string,
-    description: formData.get("description") as string,
-    openingDate: new Date(formData.get("openingDate") as string),
-    closingDate: new Date(formData.get("closingDate") as string),
-    status: formData.get("tenderStatus") as never,
-    estimatedValue: formData.get("estimatedValue") ? parseFloat(formData.get("estimatedValue") as string) : null,
-    successfulBidder: (formData.get("successfulBidder") as string) || null,
-    awardInfo: (formData.get("awardInfo") as string) || null,
-    heroImageUrl: (formData.get("heroImageUrl") as string) || null,
-    heroImageAlt: (formData.get("heroImageAlt") as string) || null,
-    ...parseHeroImageFraming(formData),
+    category: getString(formData, "category", 120),
+    department: getString(formData, "department", 120),
+    description: getString(formData, "description", 50000),
+    openingDate: new Date(getString(formData, "openingDate", 30)),
+    closingDate: new Date(getString(formData, "closingDate", 30)),
+    tenderStatus: getString(formData, "tenderStatus", 20),
+    estimatedValue: parseOptionalFloat(formData.get("estimatedValue")),
+    successfulBidder: getOptionalString(formData, "successfulBidder", 200),
+    awardInfo: getOptionalString(formData, "awardInfo", 10000),
+    heroImageUrl: getOptionalString(formData, "heroImageUrl", 2000),
+    heroImageAlt: getOptionalString(formData, "heroImageAlt", 300),
+    heroImageFocusX: framing.heroImageFocusX,
+    heroImageFocusY: framing.heroImageFocusY,
+    heroImageZoom: framing.heroImageZoom,
     statusContent: status,
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.errors[0]?.message ?? "Invalid tender data");
+  }
+
+  const {
+    id: tenderId,
+    tenderStatus,
+    statusContent,
+    ...rest
+  } = parsed.data;
+  const data = {
+    ...rest,
+    status: tenderStatus,
+    statusContent,
   };
 
-  if (id) {
-    const existing = await prisma.tender.findUnique({ where: { id } });
+  if (tenderId) {
+    const existing = await prisma.tender.findUnique({ where: { id: tenderId } });
     const tender = await prisma.tender.update({
-      where: { id },
-      data: { ...data, publishedAt: await setPublishedDate(status, existing?.publishedAt) },
+      where: { id: tenderId },
+      data: { ...data, publishedAt: await setPublishedDate(statusContent, existing?.publishedAt) },
     });
     const changes = collectChanges(existing, data, [
       { key: "title", label: "Title" },
@@ -174,7 +232,7 @@ export async function saveTender(formData: FormData) {
       { key: "closingDate", label: "Closing date", format: (v) => (v instanceof Date ? v.toLocaleDateString() : String(v)) },
     ]);
     await auditContentAction({
-      action: status === "PUBLISHED" && existing?.statusContent !== "PUBLISHED" ? "CONTENT_PUBLISHED" : "CONTENT_UPDATED",
+      action: statusContent === "PUBLISHED" && existing?.statusContent !== "PUBLISHED" ? "CONTENT_PUBLISHED" : "CONTENT_UPDATED",
       module: "Tenders",
       recordName: tender.title,
       recordId: tender.id,
@@ -183,7 +241,7 @@ export async function saveTender(formData: FormData) {
     });
   } else {
     const tender = await prisma.tender.create({
-      data: { ...data, publishedAt: status === "PUBLISHED" ? new Date() : null },
+      data: { ...data, publishedAt: statusContent === "PUBLISHED" ? new Date() : null },
     });
     await auditContentAction({
       action: "CONTENT_CREATED",
@@ -217,28 +275,39 @@ export async function deleteTender(id: string) {
 // News
 export async function saveNews(formData: FormData) {
   await requireAdmin();
-  const id = formData.get("id") as string | null;
-  const title = formData.get("title") as string;
-  const slug = (formData.get("slug") as string) || slugify(title);
-  const status = parseContentStatus(formData.get("status") as string);
-  const data = {
+  const id = getOptionalString(formData, "id", 64);
+  const title = getString(formData, "title", 300);
+  const slug = getString(formData, "slug", 200) || slugify(title);
+  const status = parseContentStatus(getString(formData, "status", 20));
+  const framing = parseImageFraming(formData);
+
+  const parsed = newsFormSchema.safeParse({
+    id,
     title,
     slug,
-    category: formData.get("category") as string,
-    summary: formData.get("summary") as string,
-    body: formData.get("body") as string,
-    featuredImageId: (formData.get("featuredImageId") as string) || null,
-    ...parseImageFraming(formData),
-    projectId: (formData.get("projectId") as string) || null,
-    tenderId: (formData.get("tenderId") as string) || null,
+    category: getString(formData, "category", 120),
+    summary: getString(formData, "summary", 2000),
+    body: getString(formData, "body", 100000),
+    featuredImageId: getOptionalString(formData, "featuredImageId", 64),
+    imageFocusX: framing.imageFocusX,
+    imageFocusY: framing.imageFocusY,
+    imageZoom: framing.imageZoom,
+    projectId: getOptionalString(formData, "projectId", 64),
+    tenderId: getOptionalString(formData, "tenderId", 64),
     status,
-  };
+  });
 
-  if (id) {
-    const existing = await prisma.newsPost.findUnique({ where: { id } });
+  if (!parsed.success) {
+    throw new Error(parsed.error.errors[0]?.message ?? "Invalid news data");
+  }
+
+  const { id: postId, status: contentStatus, ...data } = parsed.data;
+
+  if (postId) {
+    const existing = await prisma.newsPost.findUnique({ where: { id: postId } });
     const post = await prisma.newsPost.update({
-      where: { id },
-      data: { ...data, publishedAt: await setPublishedDate(status, existing?.publishedAt) },
+      where: { id: postId },
+      data: { ...data, status: contentStatus, publishedAt: await setPublishedDate(contentStatus, existing?.publishedAt) },
     });
     const changes = collectChanges(existing, data, [
       { key: "title", label: "Title" },
@@ -246,7 +315,7 @@ export async function saveNews(formData: FormData) {
       { key: "status", label: "Status" },
     ]);
     await auditContentAction({
-      action: status === "PUBLISHED" && existing?.status !== "PUBLISHED" ? "CONTENT_PUBLISHED" : "CONTENT_UPDATED",
+      action: contentStatus === "PUBLISHED" && existing?.status !== "PUBLISHED" ? "CONTENT_PUBLISHED" : "CONTENT_UPDATED",
       module: "News",
       recordName: post.title,
       recordId: post.id,
@@ -255,7 +324,7 @@ export async function saveNews(formData: FormData) {
     });
   } else {
     const post = await prisma.newsPost.create({
-      data: { ...data, publishedAt: status === "PUBLISHED" ? new Date() : null },
+      data: { ...data, status: contentStatus, publishedAt: contentStatus === "PUBLISHED" ? new Date() : null },
     });
     await auditContentAction({
       action: "CONTENT_CREATED",
@@ -997,12 +1066,20 @@ export async function resetUserPassword(formData: FormData) {
 
 export async function saveUser(formData: FormData) {
   await requireAdministrator();
-  const id = formData.get("id") as string | null;
-  const email = (formData.get("email") as string).trim().toLowerCase();
-  const name = formData.get("name") as string;
-  const roleId = formData.get("roleId") as string;
-  const password = formData.get("password") as string;
-  const status = formData.get("userStatus") as "ACTIVE" | "INACTIVE";
+  const parsed = userFormSchema.safeParse({
+    id: getOptionalString(formData, "id", 64),
+    email: getString(formData, "email", 254).toLowerCase(),
+    name: getString(formData, "name", 200),
+    roleId: getString(formData, "roleId", 64),
+    password: getString(formData, "password", 200) || undefined,
+    status: getString(formData, "userStatus", 20) as "ACTIVE" | "INACTIVE",
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.errors[0]?.message ?? "Invalid user data");
+  }
+
+  const { id, email, name, roleId, password, status } = parsed.data;
 
   if (id) {
     const existing = await prisma.user.findUnique({

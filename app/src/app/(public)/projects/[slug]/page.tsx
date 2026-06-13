@@ -8,6 +8,7 @@ import { formatCurrency, formatDate, formatStatus, getStatusColor } from "@/lib/
 import { NewsCard } from "@/components/public/NewsCard";
 import { getProjectsFallbackImage } from "@/lib/project-card";
 import { getProjectImageUrl, getProjectImageAlt } from "@/lib/images";
+import { sanitizePublicHtml } from "@/lib/sanitize-html";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -58,7 +59,10 @@ export default async function ProjectDetailPage({ params }: Props) {
               </p>
             </div>
 
-            <div className="prose-dark" dangerouslySetInnerHTML={{ __html: project.description.replace(/\n/g, "<br/>") }} />
+            <div
+              className="prose-dark"
+              dangerouslySetInnerHTML={{ __html: sanitizePublicHtml(project.description) }}
+            />
 
             {project.images.length > 0 && (
               <div>

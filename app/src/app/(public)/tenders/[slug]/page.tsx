@@ -6,6 +6,7 @@ import { getTenderBySlug } from "@/lib/data";
 import { formatCurrency, formatDate, formatStatus, getStatusColor } from "@/lib/utils";
 import { getHeroImageFromSettings, getTenderHeroImageUrl, getTenderHeroImageAlt } from "@/lib/images";
 import { getSiteSettings } from "@/lib/settings";
+import { sanitizePublicHtml } from "@/lib/sanitize-html";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -64,7 +65,10 @@ export default async function TenderDetailPage({ params }: Props) {
               <span>Est. Value: {formatCurrency(tender.estimatedValue.toString())}</span>
             )}
           </div>
-          <div className="prose-dark mb-8" dangerouslySetInnerHTML={{ __html: tender.description.replace(/\n/g, "<br/>") }} />
+          <div
+            className="prose-dark mb-8"
+            dangerouslySetInnerHTML={{ __html: sanitizePublicHtml(tender.description) }}
+          />
 
           {tender.documents.length > 0 && (
             <div className="border border-border bg-surface-elevated p-6 mb-8">

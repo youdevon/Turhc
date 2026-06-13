@@ -400,7 +400,7 @@ export async function logAudit(params: LogAuditParams) {
     const enumAction = params.legacyAction ?? enumFromHuman(params.action);
     const targetType = params.target?.type ?? null;
     const targetName = params.target?.name ?? null;
-    const module = targetType ?? "System";
+    const auditModule = targetType ?? "System";
     const recordName = targetName ?? actor.name;
 
     const ipAddress =
@@ -416,12 +416,12 @@ export async function logAudit(params: LogAuditParams) {
 
     const summary =
       params.summary ??
-      buildAuditSummary(enumAction, module, recordName, {
+      buildAuditSummary(enumAction, auditModule, recordName, {
         displayAction: params.action,
       });
 
     const requestContext = resolveRequestContext(params);
-    const category = resolveCategory(enumAction, params.category, module, actor.email);
+    const category = resolveCategory(enumAction, params.category, auditModule, actor.email);
 
     const detailsPayload = {
       ...(params.details ?? {}),
@@ -442,7 +442,7 @@ export async function logAudit(params: LogAuditParams) {
         action: enumAction,
         displayAction: params.action,
         category,
-        module,
+        module: auditModule,
         recordName,
         recordId: params.target?.id ?? null,
         targetType,

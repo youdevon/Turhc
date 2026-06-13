@@ -529,6 +529,14 @@ model AuditLog {
   @@index([requestId])
 }
 
+model RateLimitBucket {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
 model Enquiry {
   id                String        @id @default(cuid())
   firstName         String

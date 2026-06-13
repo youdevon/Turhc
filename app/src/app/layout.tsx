@@ -3,7 +3,7 @@ import { Inter, Source_Serif_4 } from "next/font/google";
 import { ToastProvider } from "@/components/Providers";
 import { UiSoundProvider } from "@/components/ui/UiSoundProvider";
 import { resolveBrandDisplayText } from "@/lib/header-config";
-import { getSiteSettingsFresh } from "@/lib/settings";
+import { getSiteSettings } from "@/lib/settings";
 import { buildThemeInlineStyle, getAppearanceFromSettings, parseThemeMode } from "@/lib/theme";
 import "./globals.css";
 
@@ -17,7 +17,7 @@ const sourceSerif = Source_Serif_4({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSiteSettingsFresh();
+  const settings = await getSiteSettings();
   const brand = resolveBrandDisplayText(settings);
 
   return {
@@ -29,8 +29,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const dynamic = "force-dynamic";
-
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -38,7 +36,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const settings = await getSiteSettingsFresh();
+  const settings = await getSiteSettings();
   const appearance = getAppearanceFromSettings(settings);
   const theme = parseThemeMode(settings.activeTheme);
   const themeStyle = buildThemeInlineStyle(appearance);

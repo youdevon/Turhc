@@ -194,11 +194,16 @@ const SITE_SETTINGS_DEFAULTS: SiteSettings = {
 };
 
 async function fetchSiteSettingsFromDb(): Promise<SiteSettings> {
-  return timed("getSiteSettings", async () => {
-    const settings = await prisma.siteSetting.findMany({ select: { key: true, value: true } });
-    const map = Object.fromEntries(settings.map((s) => [s.key, s.value]));
-    return { ...SITE_SETTINGS_DEFAULTS, ...map } as SiteSettings;
-  });
+  try {
+    return await timed("getSiteSettings", async () => {
+      const settings = await prisma.siteSetting.findMany({ select: { key: true, value: true } });
+      const map = Object.fromEntries(settings.map((s) => [s.key, s.value]));
+      return { ...SITE_SETTINGS_DEFAULTS, ...map } as SiteSettings;
+    });
+  } catch (error) {
+    console.error("Site settings unavailable, using defaults:", error);
+    return SITE_SETTINGS_DEFAULTS;
+  }
 }
 
 const getSiteSettingsCrossRequest = unstable_cache(fetchSiteSettingsFromDb, ["site-settings"], {
@@ -211,7 +216,8 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
 });
 
 async function resolveLogoAssets(settings: SiteSettings) {
-  const ids = [
+  try {
+    const ids = [
     settings.logoMediaId,
     settings.logoMediaIdWhite || settings.logoMediaIdDark,
     settings.logoMediaIdColored || settings.logoMediaIdLight,
@@ -259,6 +265,25 @@ async function resolveLogoAssets(settings: SiteSettings) {
     logoAssetCompact: meta(settings.logoMediaIdCompact),
     logoAssetCompactWhite: meta(settings.logoMediaIdCompactWhite),
   };
+  } catch (error) {
+    console.error("Logo assets unavailable:", error);
+    return {
+      logoUrl: null,
+      logoUrlWhite: null,
+      logoUrlColored: null,
+      logoUrlDark: null,
+      logoUrlLight: null,
+      logoUrlCompact: null,
+      logoUrlCompactWhite: null,
+      logoAsset: null,
+      logoAssetWhite: null,
+      logoAssetColored: null,
+      logoAssetDark: null,
+      logoAssetLight: null,
+      logoAssetCompact: null,
+      logoAssetCompactWhite: null,
+    };
+  }
 }
 
 const getSiteSettingsResolvedCrossRequest = unstable_cache(

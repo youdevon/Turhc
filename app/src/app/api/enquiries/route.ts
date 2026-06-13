@@ -24,7 +24,7 @@ const schema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request.headers) ?? "unknown";
-    const rate = checkRateLimit(`enquiry:${ip}`);
+    const rate = await checkRateLimit(`enquiry:${ip}`);
     if (!rate.allowed) {
       return NextResponse.json(
         { error: "Too many submissions. Please try again later." },

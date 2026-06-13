@@ -22,7 +22,10 @@ const nextConfig: NextConfig = {
   output: "standalone",
   allowedDevOrigins: devOriginsFromEnv(),
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "*.unsplash.com" },
+    ],
     unoptimized: process.env.NODE_ENV === "development",
   },
   experimental: {
@@ -30,9 +33,22 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "100mb",
     },
     staleTimes: {
-      dynamic: 0,
-      static: 0,
+      dynamic: 30,
+      static: 180,
     },
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+    ];
   },
   async redirects() {
     return [
@@ -44,6 +60,26 @@ const nextConfig: NextConfig = {
       {
         source: "/landing-classic",
         destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/admin/hero-slides",
+        destination: "/admin/landing-page-v2",
+        permanent: false,
+      },
+      {
+        source: "/admin/hero-slides/:path*",
+        destination: "/admin/landing-page-v2",
+        permanent: false,
+      },
+      {
+        source: "/admin/landing-page",
+        destination: "/admin/landing-page-v2",
+        permanent: false,
+      },
+      {
+        source: "/admin/audit-logs",
+        destination: "/admin/audit-log",
         permanent: true,
       },
     ];

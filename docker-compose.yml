@@ -31,9 +31,9 @@ services:
     ports:
       - "5437:5432"
     environment:
-      POSTGRES_DB: infrastructure_cms
-      POSTGRES_USER: infrastructure_user
-      POSTGRES_PASSWORD: change_this_password
+      POSTGRES_DB: ${POSTGRES_DB:-infrastructure_cms}
+      POSTGRES_USER: ${POSTGRES_USER:-infrastructure_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
     volumes:
       - infrastructure_website_db_data:/var/lib/postgresql/data
       - ./backups:/backups

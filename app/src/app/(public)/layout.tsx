@@ -1,14 +1,14 @@
 import { SiteHeader } from "@/components/public/SiteHeader";
 import { Footer } from "@/components/public/Footer";
 import { getLogoUrlForBackground } from "@/lib/header-config";
-import { getSiteSettingsResolvedFresh } from "@/lib/settings";
+import { getSiteSettingsResolved } from "@/lib/settings";
 import { parseThemeMode } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const settings = await getSiteSettingsResolvedFresh();
+  const settings = await getSiteSettingsResolved();
   const isLightTheme = parseThemeMode(settings.activeTheme) === "light";
   const footerLogoUrl = getLogoUrlForBackground(settings, isLightTheme ? "light" : "dark");
 

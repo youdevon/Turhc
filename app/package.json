@@ -17,6 +17,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -38,6 +40,9 @@
     "zod": "^3.25.51"
   },
   "devDependencies": {
+    "eslint": "^9.28.0",
+    "eslint-config-next": "^15.3.3",
+    "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.1.8",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.15.29",
@@ -46,6 +51,7 @@
     "prisma": "^6.9.0",
     "tailwindcss": "^4.1.8",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   }
 }

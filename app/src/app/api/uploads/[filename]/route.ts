@@ -23,7 +23,9 @@ const EXT_MIME: Record<string, string> = {
 
 function contentDisposition(filename: string, mime: string): string {
   const safe = filename.replace(/[^\w.\-() ]/g, "_");
-  const inline = mime === "application/pdf" || mime.startsWith("image/") || mime.startsWith("video/");
+  const inline =
+    mime !== "image/svg+xml" &&
+    (mime === "application/pdf" || mime.startsWith("image/") || mime.startsWith("video/"));
   return `${inline ? "inline" : "attachment"}; filename="${safe}"`;
 }
 

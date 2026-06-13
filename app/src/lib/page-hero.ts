@@ -34,12 +34,18 @@ export async function getPageHeroBySlug(
   const defaults = PAGE_HERO_DEFAULTS[slug];
   const pageType = overrides?.pageType ?? defaults?.pageType ?? "generic";
 
-  const [page, settings] = await Promise.all([
-    prisma.page.findFirst({
-      where: { slug, status: ContentStatus.PUBLISHED },
-    }),
+  const [pageResult, settings] = await Promise.all([
+    prisma.page
+      .findFirst({
+        where: { slug, status: ContentStatus.PUBLISHED },
+      })
+      .catch((error) => {
+        console.error(`Page hero lookup failed for "${slug}":`, error);
+        return null;
+      }),
     getSiteSettings(),
   ]);
+  const page = pageResult;
 
   const fallbackImage = getHeroImageFromSettings(settings, pageType);
   const overlayDefault = parseFloat(settings.heroOverlayDarkness) || 0.55;

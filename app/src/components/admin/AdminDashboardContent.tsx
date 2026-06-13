@@ -7,11 +7,18 @@ import {
   getAdminGreetingPeriod,
   getAdminRoleBadgeClass,
 } from "@/lib/admin-greeting";
+import { isAdministrator } from "@/lib/admin-access";
+import { getDashboardStats } from "@/lib/dashboard-stats";
+import { formatAuditTimestamp } from "@/lib/audit-helpers";
 import {
   LayoutDashboard,
   Home,
   Plus,
   ExternalLink,
+  Mail,
+  FileEdit,
+  ShieldAlert,
+  ScrollText,
 } from "lucide-react";
 
 export async function AdminDashboardContent() {
@@ -20,6 +27,8 @@ export async function AdminDashboardContent() {
   const greetingPeriod = getAdminGreetingPeriod();
   const roleLabel = formatAdminRole(session?.user?.role);
   const roleBadgeClass = getAdminRoleBadgeClass(session?.user?.role);
+  const stats = await getDashboardStats();
+  const isAdmin = isAdministrator(session?.user?.role);
 
   const quickActions = [
     {
@@ -83,6 +92,63 @@ export async function AdminDashboardContent() {
             </p>
           </div>
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Link href="/admin/enquiries" className="admin-card p-4 hover:border-accent/40 transition-colors">
+            <div className="flex items-center gap-3">
+              <Mail className="h-5 w-5 text-accent" aria-hidden="true" />
+              <div>
+                <p className="text-2xl font-semibold">{stats.unreadEnquiries}</p>
+                <p className="text-sm text-muted">Unread enquiries</p>
+              </div>
+            </div>
+          </Link>
+          <div className="admin-card p-4">
+            <div className="flex items-center gap-3">
+              <FileEdit className="h-5 w-5 text-accent" aria-hidden="true" />
+              <div>
+                <p className="text-2xl font-semibold">{stats.draftContentCount}</p>
+                <p className="text-sm text-muted">Draft projects, tenders & news</p>
+              </div>
+            </div>
+          </div>
+          {isAdmin && (
+            <>
+              <div className="admin-card p-4">
+                <div className="flex items-center gap-3">
+                  <ShieldAlert className="h-5 w-5 text-red-500" aria-hidden="true" />
+                  <div>
+                    <p className="text-2xl font-semibold">{stats.failedLogins24h}</p>
+                    <p className="text-sm text-muted">Failed logins (24h)</p>
+                  </div>
+                </div>
+              </div>
+              <Link href="/admin/audit-log" className="admin-card p-4 hover:border-accent/40 transition-colors">
+                <div className="flex items-center gap-3">
+                  <ScrollText className="h-5 w-5 text-accent" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-medium">Audit log</p>
+                    <p className="text-sm text-muted">Review recent activity</p>
+                  </div>
+                </div>
+              </Link>
+            </>
+          )}
+        </div>
+
+        {isAdmin && stats.recentActivity.length > 0 && (
+          <div className="admin-card p-4">
+            <h2 className="admin-section-title text-base mb-3">Recent activity</h2>
+            <ul className="space-y-2">
+              {stats.recentActivity.map((item) => (
+                <li key={item.id} className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                  <span>{item.summary}</span>
+                  <span className="text-muted whitespace-nowrap">{formatAuditTimestamp(item.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="admin-actions admin-actions--nowrap admin-dashboard-actions pt-1 border-t border-border">
           {quickActions.map((action) => {

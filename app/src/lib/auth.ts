@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 import { getClientIp, getUserAgent, logAudit } from "./audit";
 import { formatAdminRole } from "./admin-greeting";
+import { checkRateLimit } from "./rate-limit";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
@@ -32,6 +33,24 @@ export const authOptions: NextAuthOptions = {
         const requestHeaders = req?.headers ?? {};
         const ip = getClientIp(requestHeaders);
         const userAgent = getUserAgent(requestHeaders);
+
+        const rateLimit = await checkRateLimit(`login:${ip ?? email}`, {
+          maxRequests: 5,
+          windowMs: 15 * 60 * 1000,
+        });
+        if (!rateLimit.allowed) {
+          await logAudit({
+            actor: { name: email, email, role: "Staff" },
+            action: "Login Failed",
+            outcome: "Failed",
+            failReason: "Too many login attempts. Try again later.",
+            ipAddress: ip,
+            userAgent,
+            request: { headers: requestHeaders },
+            context: { httpMethod: "POST", route: "/admin/login" },
+          });
+          return null;
+        }
 
         if (!user || user.status !== "ACTIVE") {
           await logAudit({

@@ -6,6 +6,7 @@ import { getNewsBySlug } from "@/lib/data";
 import { formatDate } from "@/lib/utils";
 import { getHeroImageFromSettings, getNewsImageUrl, getNewsImageAlt } from "@/lib/images";
 import { getSiteSettings } from "@/lib/settings";
+import { sanitizePublicHtml } from "@/lib/sanitize-html";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -42,7 +43,10 @@ export default async function NewsDetailPage({ params }: Props) {
           {post.publishedAt && (
             <p className="text-sm text-muted mb-6">{formatDate(post.publishedAt)}</p>
           )}
-          <div className="prose-dark" dangerouslySetInnerHTML={{ __html: post.body.replace(/\n/g, "<br/>") }} />
+          <div
+            className="prose-dark"
+            dangerouslySetInnerHTML={{ __html: sanitizePublicHtml(post.body) }}
+          />
           {(post.project || post.tender) && (
             <div className="mt-8 pt-8 border-t border-border">
               <p className="text-sm text-muted mb-2">Related:</p>
